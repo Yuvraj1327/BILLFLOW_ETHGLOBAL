@@ -1,0 +1,44 @@
+# Render blueprint. Secrets are declared with sync:false so you enter them in the dashboard; they are never stored in git.
+services:
+  - type: web
+    name: billflow-api
+    runtime: docker
+    rootDir: backend
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - {key: APP_ENV, value: production}
+      - {key: ENABLE_DOCS, value: "false"}
+      - {key: LOG_LEVEL, value: INFO}
+      - {key: WHITECHAIN_CHAIN_ID, value: "1874"}
+      - {key: WHITECHAIN_RPC_URL, value: https://rpc.testnet.whitechain.io}
+      - {key: WHITECHAIN_EXPLORER_URL, value: https://explorer.testnet.whitechain.io}
+      - {key: CORS_ORIGINS, sync: false}
+      - {key: PUBLIC_CHECKOUT_BASE_URL, sync: false}
+      - {key: SUPABASE_URL, sync: false}
+      - {key: SUPABASE_ANON_KEY, sync: false}
+      - {key: SUPABASE_SERVICE_ROLE_KEY, sync: false}
+      - {key: SUPABASE_JWT_SECRET, sync: false}
+      - {key: DATABASE_URL, sync: false}
+      - {key: ANTHROPIC_API_KEY, sync: false}
+      - {key: QUOTE_SIGNER_PRIVATE_KEY, sync: false}
+      - {key: WHITECHAIN_USDT_ADDRESS, sync: false}
+      - {key: WHITECHAIN_PAYMENT_CONTRACT, sync: false}
+      - {key: WHITECHAIN_FINANCING_CONTRACT, sync: false}
+  # The chain indexer is what flips payments/financing to verified. Run it as a separate always-on worker.
+  - type: worker
+    name: billflow-indexer
+    runtime: docker
+    rootDir: backend
+    dockerCommand: python -m app.workers.blockchain_indexer
+    autoDeploy: false
+    envVars:
+      - {key: APP_ENV, value: production}
+      - {key: DATABASE_URL, sync: false}
+      - {key: SUPABASE_URL, sync: false}
+      - {key: SUPABASE_SERVICE_ROLE_KEY, sync: false}
+      - {key: WHITECHAIN_RPC_URL, value: https://rpc.testnet.whitechain.io}
+      - {key: WHITECHAIN_CHAIN_ID, value: "1874"}
+      - {key: WHITECHAIN_USDT_ADDRESS, sync: false}
+      - {key: WHITECHAIN_PAYMENT_CONTRACT, sync: false}
+      - {key: WHITECHAIN_FINANCING_CONTRACT, sync: false}

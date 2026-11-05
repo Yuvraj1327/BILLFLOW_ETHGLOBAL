@@ -40,6 +40,8 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     s = get_settings()
     app = FastAPI(title="BillFlow API", version="0.3.0", lifespan=lifespan, openapi_tags=TAGS,
+                  docs_url="/docs" if s.enable_docs else None, redoc_url="/redoc" if s.enable_docs else None,
+                  openapi_url="/openapi.json" if s.enable_docs else None,
                   description="Web3 invoicing, USDT payments and invoice financing on Whitechain Sepolia (chain 1874). "
                               "Send `Authorization: Bearer <Supabase access token>`.")
     if s.cors_list:

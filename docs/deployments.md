@@ -4,7 +4,7 @@
 
 | Item | Value |
 |---|---|
-| USDT (official testnet) | _unverified — candidate supplied: 0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7; confirm with `CheckUsdt.s.sol`_ |
+| USDT (official testnet) | `0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7` — matches the address on the ETHGlobal Mumbai Whitechain prize page (checked 2026-11-05). Still run `CheckUsdt.s.sol` to confirm code + decimals on-chain. |
 | USDT decimals (read on-chain) | _TBD_ |
 | BillFlowPayments | _TBD_ |
 | InvoiceFinancing | _TBD_ |

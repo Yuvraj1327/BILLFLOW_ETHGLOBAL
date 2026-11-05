@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
 
     app_env: str = "development"
+    enable_docs: bool = True  # set false to hide /docs, /redoc, /openapi.json in production
     api_prefix: str = "/api/v1"
     cors_origins: str = ""  # comma separated
     public_checkout_base_url: str = "http://localhost:8080"

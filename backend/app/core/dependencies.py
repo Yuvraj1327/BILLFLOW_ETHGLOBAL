@@ -107,6 +107,9 @@ _hits: dict[str, deque] = defaultdict(deque)
 def public_rate_limit(request: Request, settings: Annotated[Settings, Depends(get_settings)]) -> None:
     ip = request.client.host if request.client else "unknown"
     now = time.monotonic()
+    if len(_hits) > 10_000:  # bound memory: drop IPs with no hit in the last minute
+        for k in [k for k, d in _hits.items() if not d or now - d[-1] > 60]:
+            del _hits[k]
     q = _hits[ip]
     while q and now - q[0] > 60:
         q.popleft()

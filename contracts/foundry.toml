@@ -1,0 +1,22 @@
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.28"      # locally: export FOUNDRY_SOLC=/path/to/solc if svm cannot download
+evm_version = "shanghai"     # conservative for an OP Stack L2; confirm with a trivial deploy first
+optimizer = true
+optimizer_runs = 200
+remappings = [
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+  "forge-std/=lib/forge-std/src/",
+]
+fs_permissions = []
+
+[profile.default.fuzz]
+runs = 512
+
+[profile.default.invariant]
+runs = 128
+depth = 32

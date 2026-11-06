@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-/// Minimal ABI encoder for the exact call shapes BillFlow needs (static types + one trailing `bytes`).
+/// Minimal ABI encoder for the exact call shapes NEXA BILLFLOW needs (static types + one trailing `bytes`).
 /// Selectors were derived from docs/abi/*.json (keccak256 of the canonical signature) and are asserted in test/abi_test.dart.
 /// This runs only in the client to build calldata for the USER'S wallet to sign. It never holds a key.
 class Selectors {

@@ -25,10 +25,10 @@ Create a project; run `supabase/migrations/0001…0003` in order; Auth → email
 
 ## 4. Flutter (manual)
 ```bash
-cd app && flutter create . --platforms=web,android,ios && flutter pub get && flutter analyze && flutter test
-cp env.example.json env.json   # API_BASE_URL, SUPABASE_URL, SUPABASE_ANON_KEY (public values only)
-flutter build web --dart-define-from-file=env.json          # host with SPA rewrite so /pay/:token works
-flutter build apk --release --dart-define-from-file=env.json  # Android: wallet connect is NOT available on mobile yet
+cd frontend && flutter create . --platforms=web,android,ios && flutter pub get && flutter analyze && flutter test
+cp .env.example .env   # API_BASE_URL, SUPABASE_URL, SUPABASE_ANON_KEY (public values only; .env is bundled as a Flutter asset, so some static hosts that hide dotfiles must be configured to serve /assets/.env)
+flutter build web          # host with SPA rewrite so /pay/:token works
+flutter build apk --release  # Android: wallet connect is NOT available on mobile yet
 ```
 Fix compile errors first: the code has never been compiled. For the Android release set app name/icon/signing config yourself.
 

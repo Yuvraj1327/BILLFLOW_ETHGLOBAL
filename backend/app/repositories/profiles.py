@@ -9,6 +9,17 @@ def get(c: Connection, user_id: UUID | str) -> dict | None:
     return c.execute("select * from profiles where id=%s", (user_id,)).fetchone()
 
 
+def ensure(c: Connection, user_id: UUID | str, email: str | None, requested_role: str | None, display_name: str | None) -> dict | None:
+    """Idempotent profile creation (same rules as the `handle_new_user` trigger: merchant/investor else customer, never admin).
+
+    Only inserts when the auth user really exists, so a token for a deleted user cannot create an orphan or raise an FK error."""
+    role = requested_role if requested_role in ("merchant", "investor") else "customer"
+    c.execute("""insert into profiles (id, email, display_name, role)
+                 select %s, %s, %s, %s::user_role where exists (select 1 from auth.users where id = %s)
+                 on conflict (id) do nothing""", (user_id, email, display_name, role, user_id))
+    return get(c, user_id)
+
+
 def get_by_wallet(c: Connection, wallet: str) -> dict | None:
     return c.execute("select * from profiles where wallet_address=%s", (wallet.lower(),)).fetchone()
 

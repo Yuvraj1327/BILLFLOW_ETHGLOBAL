@@ -1,3 +1,4 @@
+import '../../core/widgets/brand_logo.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -34,7 +35,7 @@ class ReceiptScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(_receiptProvider((token, txHash)));
     return Scaffold(
-      appBar: AppBar(title: const Text('Payment receipt'), leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/pay/$token'))),
+      appBar: AppBar(title: const BrandTitle('Payment receipt'), leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/pay/$token'))),
       body: SingleChildScrollView(
         child: ResponsiveBody(
           maxWidth: 560,
@@ -45,14 +46,14 @@ class ReceiptScreen extends ConsumerWidget {
               final p = d.payment;
               if (p == null || (p.status ?? 'CONFIRMED') != 'CONFIRMED') {
                 return Column(children: [
-                  const InfoBanner('This payment has not been verified by BillFlow yet, so no receipt is available. Check back shortly.', tone: BannerTone.warn),
+                  const InfoBanner('This payment has not been verified by NEXA BILLFLOW yet, so no receipt is available. Check back shortly.', tone: BannerTone.warn),
                   const SizedBox(height: 12),
                   OutlinedButton(onPressed: () => ref.invalidate(_receiptProvider((token, txHash))), child: const Text('Refresh')),
                 ]);
               }
               return AppCard(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const InfoBanner('Verified on-chain by BillFlow', tone: BannerTone.success, icon: Icons.verified),
+                  const InfoBanner('Verified on-chain by NEXA BILLFLOW', tone: BannerTone.success, icon: Icons.verified),
                   const SizedBox(height: 10),
                   KeyValue('Merchant', d.invoice.merchantName),
                   KeyValue('Invoice', d.invoice.number),

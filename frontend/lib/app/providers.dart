@@ -76,19 +76,24 @@ class AuthController extends AsyncNotifier<Profile?> {
     ref.onDispose(() => _sub?.cancel());
     if (supabase.auth.currentSession == null) return null;
     try {
-      return await ref.read(apiProvider).me();
-    } on AppException catch (e) {
-      if (e.isUnauthorized) {
-        await supabase.auth.signOut();
-        return null;
-      }
-      rethrow;
+      // Restores an existing session automatically. Bounded, so a dead API can never leave the user on the splash screen.
+      final p = await ref.read(apiProvider).me().timeout(const Duration(seconds: 20));
+      ref.read(authNoticeProvider.notifier).state = null;
+      return p;
+    } catch (e) {
+      // Any failure ends here with a visible reason on the login screen instead of an endless spinner or a silent bounce.
+      ref.read(authNoticeProvider.notifier).state = e is AppException && e.isUnauthorized
+          ? 'Your session expired. Please log in again.'
+          : e is TimeoutException ? 'The NEXA BILLFLOW server did not respond. Check that the backend is running, then log in again.'
+          : 'Could not load your profile: ${errorText(e)}';
+      await supabase.auth.signOut();
+      return null;
     }
   }
 
   Future<void> reload() async {
     state = const AsyncLoading<Profile?>().copyWithPrevious(state);
-    state = await AsyncValue.guard(() => ref.read(apiProvider).me());
+    state = await AsyncValue.guard(() => ref.read(apiProvider).me().timeout(const Duration(seconds: 20)));
   }
 
   Future<void> signOut() async {
@@ -96,6 +101,9 @@ class AuthController extends AsyncNotifier<Profile?> {
     ref.invalidateSelf();
   }
 }
+
+/// Why the user was sent back to the login screen (shown there once).
+final authNoticeProvider = StateProvider<String?>((ref) => null);
 
 final authProvider = AsyncNotifierProvider<AuthController, Profile?>(AuthController.new);
 

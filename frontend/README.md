@@ -1,6 +1,6 @@
-# BillFlow — Flutter app (Step 4)
+# NEXA BILLFLOW — Flutter app (Step 4)
 
-Flutter client for the BillFlow FastAPI backend (Step 3), Supabase Auth, and the Whitechain Sepolia contracts (Step 2).
+Flutter client for the NEXA BILLFLOW FastAPI backend (Step 3), Supabase Auth, and the Whitechain Sepolia contracts (Step 2).
 
 > **Honest status:** this code was written in an environment with **no Flutter SDK and no pub.dev access**. It has **not been
 > compiled, analysed, run or tested**. The first thing to do is `flutter pub get && flutter analyze && flutter test` and fix whatever
@@ -9,13 +9,13 @@ Flutter client for the BillFlow FastAPI backend (Step 3), Supabase Auth, and the
 ## First run
 
 ```bash
-cd app
+cd frontend
 flutter create . --platforms=web,android,ios --project-name billflow   # generates web/, android/, ios/ (keeps lib/ and pubspec.yaml)
 flutter pub get
-cp env.example.json env.json        # fill in PUBLIC values only
+cp .env.example .env                # fill in PUBLIC values only (bundled into the app as an asset)
 flutter analyze
 flutter test
-flutter run -d chrome --dart-define-from-file=env.json
+flutter run -d chrome               # config is read from .env at startup
 ```
 
 `flutter create .` may rewrite `pubspec.yaml` dependencies' comments only; if it overwrites `pubspec.yaml`, restore ours from git.

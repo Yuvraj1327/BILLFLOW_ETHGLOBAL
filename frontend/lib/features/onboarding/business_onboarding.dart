@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../core/errors/app_exception.dart';
@@ -37,7 +38,8 @@ class _S extends ConsumerState<BusinessOnboardingScreen> {
         if (opt(_tax) != null) 'tax_id': opt(_tax),
         if (opt(_wallet) != null) 'payout_wallet': opt(_wallet),
       });
-      await ref.read(authProvider.notifier).reload(); // router then sends the merchant to the dashboard
+      await ref.read(authProvider.notifier).reload();
+      if (mounted) context.go('/merchant');
     } catch (e) {
       if (mounted) toast(context, errorText(e), error: true);
     }

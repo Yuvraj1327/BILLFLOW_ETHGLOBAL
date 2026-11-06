@@ -6,6 +6,10 @@ class BillflowApi {
   BillflowApi(this._c);
   final ApiClient _c;
 
+  // ── auth ──
+  Future<Json> signup(String email, String password, String role, String name) async => asJson(await _c.post('/auth/signup',
+      auth: false, data: {'email': email, 'password': password, 'role': role, if (name.isNotEmpty) 'display_name': name}));
+
   // ── profile / notifications ──
   Future<Profile> me() async => Profile(asJson(await _c.get('/users/me')));
   Future<Profile> updateMe(String displayName) async => Profile(asJson(await _c.patch('/users/me', data: {'display_name': displayName})));
@@ -13,6 +17,13 @@ class BillflowApi {
       Paged.from(await _c.get('/notifications', query: {'page': page, 'page_size': 30, 'unread_only': unreadOnly}), NotificationItem.new);
   Future<void> markRead(String id) => _c.post('/notifications/$id/read');
   Future<void> markAllRead() => _c.post('/notifications/read-all');
+
+  // ── investor onboarding / verification ──
+  Future<Json?> investorOnboarding() async {
+    final r = await _c.get('/investors/me/onboarding');
+    return r == null ? null : asJson(r);
+  }
+  Future<void> submitInvestorOnboarding(Json body) => _c.post('/investors/me/onboarding', data: body);
 
   // ── wallet linking (EIP-191 proof of ownership) ──
   Future<Json> walletChallenge(String wallet) async => asJson(await _c.post('/auth/wallet/challenge', data: {'wallet_address': wallet}));
@@ -52,6 +63,10 @@ class BillflowApi {
   Future<String> invoiceDocUrl(String id, String docId) async => asJson(await _c.get('/invoices/$id/documents/$docId/url')).str('url');
   Future<PaymentLink> createPaymentLink(String id) async => PaymentLink(asJson(await _c.post('/invoices/$id/payment-link')));
   Future<PaymentStatus> paymentStatus(String id) async => PaymentStatus(asJson(await _c.get('/invoices/$id/payment-status')));
+
+  // ── reports (accountant export) ──
+  Future<String> paymentsCsv({String? from, String? to}) async =>
+      (await _c.get('/merchant/exports/payments.csv', query: {'date_from': from, 'date_to': to})).toString();
 
   // ── payments ──
   Future<Paged<Payment>> payments({int page = 1, int pageSize = 20, String? invoiceId}) async =>
@@ -104,6 +119,8 @@ class BillflowApi {
   // ── admin ──
   Future<Json> adminList(String path, {int page = 1, Map<String, dynamic>? query}) async =>
       asJson(await _c.get('/admin/$path', query: {'page': page, 'page_size': 30, ...?query}));
+  Future<Profile> adminCreateAdmin(String email, String password, String? name) async =>
+      Profile(asJson(await _c.post('/admin/users', data: {'email': email, 'password': password, if (name != null) 'display_name': name})));
   Future<Profile> adminSetRole(String userId, String role) async => Profile(asJson(await _c.patch('/admin/users/$userId/role', data: {'role': role})));
   Future<void> adminInvestorVerification(String userId, String decision) => _c.patch('/admin/users/$userId/investor-verification', data: {'decision': decision});
   Future<Paged<Business>> adminBusinesses({int page = 1, String? status}) async =>

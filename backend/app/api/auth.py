@@ -6,11 +6,13 @@ from fastapi import APIRouter, Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import Settings, get_settings
+from app.core.database import transaction
 from app.core.dependencies import AnyUser
 from app.core.exceptions import unauthorized
 from app.schemas.auth import (LoginIn, RefreshIn, SessionOut, SignupIn, WalletChallengeIn, WalletChallengeOut, WalletVerifyIn)
 from app.schemas.common import ERRORS, Message
 from app.schemas.user import ProfileOut
+from app.repositories import profiles as prof
 from app.services import auth_service
 from app.services.supabase_client import get_auth
 
@@ -28,7 +30,11 @@ def _session(d: dict) -> SessionOut:
 def signup(body: SignupIn) -> SessionOut:
     """`role` is only a request limited to merchant/investor; the database trigger enforces it and `admin` is never self-assignable.
     If the Supabase project requires e-mail confirmation no tokens are returned (`confirmation_required=true`)."""
-    return _session(get_auth().signup(body.email, body.password, body.role, body.display_name))
+    out = _session(get_auth().signup(body.email, body.password, body.role, body.display_name))
+    if out.user_id:  # belt and braces next to the DB trigger; idempotent
+        with transaction() as c:
+            prof.ensure(c, out.user_id, out.email, body.role, body.display_name)
+    return out
 
 
 @router.post("/login", response_model=SessionOut, summary="Log in with e-mail and password")

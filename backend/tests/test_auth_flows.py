@@ -83,3 +83,37 @@ def test_customer_public_checkout_needs_no_account(client):
     # unknown link -> clean 404 from the PUBLIC endpoint (no auth header at all)
     r = client.get(f"{API}/public/invoices/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
     assert r.status_code == 404
+
+
+def test_cors_allows_any_localhost_port_but_not_other_sites(client):
+    h = {"Access-Control-Request-Method": "GET", "Access-Control-Request-Headers": "authorization"}
+    ok = client.options(f"{API}/users/me", headers={**h, "Origin": "http://localhost:51234"})
+    assert ok.status_code == 200 and ok.headers["access-control-allow-origin"] == "http://localhost:51234"
+    assert client.options(f"{API}/users/me", headers={**h, "Origin": "http://127.0.0.1:9999"}).status_code == 200
+    assert client.options(f"{API}/users/me", headers={**h, "Origin": "https://evil.example"}).status_code == 400
+    assert client.options(f"{API}/users/me", headers={**h, "Origin": "http://localhost.evil.example"}).status_code == 400
+
+
+def test_es256_token_verified_via_jwks_derived_from_supabase_url(w, client, monkeypatch):
+    """Supabase projects with asymmetric signing keys issue ES256 tokens; the JWKS URL must default from SUPABASE_URL."""
+    import jwt
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from app.core import security
+    from app.core.config import get_settings
+    key = ec.generate_private_key(ec.SECP256R1())
+    seen = {}
+
+    class FakeJwks:
+        def get_signing_key_from_jwt(self, t):
+            return type("K", (), {"key": key.public_key()})()
+
+    monkeypatch.setattr(security, "_jwks", lambda url: seen.setdefault("url", url) and FakeJwks())
+    u = w.user("merchant")
+    import time
+    good = jwt.encode({"sub": str(u["id"]), "aud": "authenticated", "exp": int(time.time()) + 600}, key, algorithm="ES256")
+    r = client.get(f"{API}/users/me", headers={"Authorization": f"Bearer {good}"})
+    assert r.status_code == 200 and r.json()["role"] == "merchant"
+    assert seen["url"] == get_settings().supabase_url.rstrip("/") + "/auth/v1/.well-known/jwks.json"
+    other = ec.generate_private_key(ec.SECP256R1())
+    forged = jwt.encode({"sub": str(u["id"]), "aud": "authenticated", "exp": int(time.time()) + 600}, other, algorithm="ES256")
+    assert client.get(f"{API}/users/me", headers={"Authorization": f"Bearer {forged}"}).status_code == 401

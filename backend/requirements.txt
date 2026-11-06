@@ -10,3 +10,4 @@ web3>=7.0,<8
 eth-account>=0.13
 anthropic>=0.40
 pypdf>=4.0
+certifi>=2024.2.2

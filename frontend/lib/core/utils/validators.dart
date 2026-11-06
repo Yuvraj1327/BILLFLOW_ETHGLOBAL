@@ -19,3 +19,21 @@ String? positiveDecimal(String? v, {int maxDecimals = 6, String label = 'Amount'
   if (RegExp(r'^0+(\.0+)?$').hasMatch(s)) return '$label must be greater than zero';
   return null;
 }
+
+final _payToken = RegExp(r'^[A-Za-z0-9_\-]{32,128}$');
+
+/// Extracts the payment-link token from a pasted checkout URL (path or `#/pay/…` hash form) or a bare token. Null if none.
+String? parsePaymentToken(String? input) {
+  final s = (input ?? '').trim();
+  if (s.isEmpty) return null;
+  if (_payToken.hasMatch(s)) return s;
+  final uri = Uri.tryParse(s);
+  if (uri == null) return null;
+  final candidates = [uri.pathSegments, if (uri.fragment.isNotEmpty) Uri.tryParse(uri.fragment.startsWith('/') ? uri.fragment : '/${uri.fragment}')?.pathSegments ?? const <String>[]];
+  for (final segs in candidates) {
+    final i = segs.lastIndexOf('pay');
+    if (i >= 0 && i + 1 < segs.length && _payToken.hasMatch(segs[i + 1])) return segs[i + 1];
+  }
+  final q = uri.queryParameters['token'];
+  return q != null && _payToken.hasMatch(q) ? q : null;
+}

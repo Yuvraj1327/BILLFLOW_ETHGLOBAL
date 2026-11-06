@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../core/utils/format.dart';
@@ -13,6 +14,10 @@ class PortfolioScreen extends ConsumerWidget {
   const PortfolioScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(authProvider).valueOrNull;
+    if (profile != null && profile.investorVerification != 'verified') {
+      return InvestorGate(profile.investorVerification, onAction: (r) => context.push(r));
+    }
     final pf = ref.watch(portfolioProvider);
     return ResponsiveBody(
       padding: EdgeInsets.zero,

@@ -69,6 +69,23 @@ class MerchantDashboard extends ConsumerWidget {
             value: data,
             onRetry: () => ref.invalidate(merchantDashboardProvider),
             builder: (d) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              PageHeader('Welcome back, ${(ref.watch(authProvider).valueOrNull?.label ?? '').split(' ').first}',
+                  subtitle: 'Here is how your invoices and payments are doing.',
+                  actions: [
+                    OutlinedButton.icon(onPressed: () => context.go('/merchant/customers'), icon: const Icon(Icons.person_add_alt_1_outlined), label: const Text('Add customer')),
+                    FilledButton.icon(onPressed: () => context.push('/merchant/invoices/new'), icon: const Icon(Icons.add), label: const Text('New invoice')),
+                  ]),
+              if (d.business != null && (d.business!.payoutWallet ?? '').isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: AppCard(child: Row(children: [
+                    const Icon(Icons.account_balance_wallet_outlined),
+                    const SizedBox(width: 12),
+                    const Expanded(child: Text('Add a payout wallet to your business so you can issue invoices and receive USDT.', style: TextStyle(fontWeight: FontWeight.w600))),
+                    const SizedBox(width: 8),
+                    FilledButton(onPressed: () => context.push('/merchant/business'), child: const Text('Add wallet')),
+                  ])),
+                ),
               if (d.business != null && !d.business!.isVerified)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
@@ -81,17 +98,23 @@ class MerchantDashboard extends ConsumerWidget {
                 StatTile(label: 'Overdue', value: '${d.byStatus['OVERDUE'] ?? 0}', sub: 'invoices', icon: Icons.warning_amber_outlined, color: Colors.red),
               ]),
               if (d.truncated) Padding(padding: const EdgeInsets.only(top: 8), child: Text('Showing totals for the latest ${d.fetched} of ${d.total} invoices.', style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12))),
+              TwoCol(
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const SectionTitle('Invoices by status'),
               AppCard(
                 child: d.total == 0
                     ? EmptyState(icon: Icons.receipt_long_outlined, title: 'No invoices yet', message: 'Create your first invoice to see your numbers here.', action: FilledButton(onPressed: () => context.push('/merchant/invoices/new'), child: const Text('Create invoice')))
                     : StackedBar(d.byStatus),
               ),
+              ]),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               SectionTitle('Financing', trailing: TextButton(onPressed: () => context.go('/merchant/financing'), child: const Text('Open'))),
               AppCard(
                 child: d.offers.isEmpty
                     ? const Text('No financing requests. Eligible invoices can be financed from the invoice page.')
                     : Wrap(spacing: 8, runSpacing: 8, children: [for (final e in d.offers.entries) StatusChip(e.key, label: '${titleCase(e.key)}: ${e.value}')]),
+              ),
+              ]),
               ),
               SectionTitle('Recent verified payments', trailing: TextButton(onPressed: () => context.go('/transactions'), child: const Text('All'))),
               if (d.recent.isEmpty)

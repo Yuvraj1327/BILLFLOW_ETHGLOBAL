@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' hide shortHash;
 import 'package:go_router/go_router.dart';
 
+import '../../app/theme/app_theme.dart';
 import '../../app/providers.dart';
 import '../../core/errors/app_exception.dart';
 import '../../core/services/wallet/wallet_service.dart';
 import '../../core/utils/abi.dart';
 import '../../core/utils/format.dart';
+import '../../core/utils/validators.dart' as v;
 import '../../core/widgets/widgets.dart';
 import '../../shared/models/models.dart';
 import '../../shared/widgets/paged_list.dart';
@@ -46,7 +48,25 @@ class AdminDashboard extends ConsumerWidget {
                   StatTile(label: 'Indexer in API process', value: idx['enabled_in_api_process'] == true ? 'Yes' : 'No', icon: Icons.memory),
                 ]),
                 const SectionTitle('Chain health'),
-                AppCard(child: Column(children: [for (final e in health.entries) KeyValue(titleCase(e.key), '${e.value}')])),
+                AppCard(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      StatusChip(health['ok'] == true ? 'CONFIRMED' : 'FAILED', label: health['ok'] == true ? 'Healthy' : 'Needs attention'),
+                    ]),
+                    const SizedBox(height: 10),
+                    if (health['checks'] is Map)
+                      for (final c in (health['checks'] as Map).entries)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Icon((c.value is Map && c.value['ok'] == true) ? Icons.check_circle : Icons.cancel, size: 18, color: (c.value is Map && c.value['ok'] == true) ? Tokens.success : Tokens.danger),
+                            const SizedBox(width: 10),
+                            Expanded(child: Text('${titleCase('${c.key}'.replaceAll('_', ' '))}: ${c.value is Map ? c.value['detail'] : c.value}')),
+                          ]),
+                        ),
+                    for (final e in health.entries.where((e) => e.key != 'ok' && e.key != 'checks')) KeyValue(titleCase(e.key), '${e.value ?? '—'}'),
+                  ]),
+                ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: () async {
@@ -107,6 +127,39 @@ class _UsersState extends ConsumerState<AdminUsers> {
     }
   }
 
+  Future<void> _createAdmin() async {
+    final form = GlobalKey<FormState>();
+    final name = TextEditingController(), email = TextEditingController(), pass = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Create admin account'),
+        content: Form(
+          key: form,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextFormField(controller: name, decoration: const InputDecoration(labelText: 'Name')),
+            const SizedBox(height: 10),
+            TextFormField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email'), validator: v.email),
+            const SizedBox(height: 10),
+            TextFormField(controller: pass, obscureText: true, decoration: const InputDecoration(labelText: 'Temporary password (12+ chars)'), validator: (x) => (x ?? '').length < 12 ? 'Use at least 12 characters' : null),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () { if (form.currentState!.validate()) Navigator.pop(ctx, true); }, child: const Text('Create admin')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(apiProvider).adminCreateAdmin(email.text.trim(), pass.text, name.text.trim().isEmpty ? null : name.text.trim());
+      if (mounted) toast(context, 'Admin created. Share the credentials securely.');
+      setState(() => _token++);
+    } catch (e) {
+      if (mounted) toast(context, errorText(e), error: true);
+    }
+  }
+
   Future<void> _verifyInvestor(Json u, String decision) async {
     try {
       await ref.read(apiProvider).adminInvestorVerification(u.str('id'), decision);
@@ -123,6 +176,8 @@ class _UsersState extends ConsumerState<AdminUsers> {
           reloadToken: _token,
           load: (p) async => Paged.from(await ref.read(apiProvider).adminList('users', page: p, query: {'role': _role, 'q': _q.isEmpty ? null : _q}), (j) => j),
           header: Column(children: [
+            Align(alignment: Alignment.centerRight, child: FilledButton.icon(onPressed: _createAdmin, icon: const Icon(Icons.admin_panel_settings_outlined), label: const Text('Create admin'))),
+            const SizedBox(height: 8),
             TextField(decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Search by email or name'), onSubmitted: (s) => setState(() { _q = s.trim(); _token++; })),
             const SizedBox(height: 8),
             SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: [
@@ -145,8 +200,8 @@ class _UsersState extends ConsumerState<AdminUsers> {
                 OutlinedButton(onPressed: () => _changeRole(u), child: const Text('Change role')),
                 if (u.str('role') == 'investor') ...[
                   StatusChip(u.str('investor_verification'), label: 'Investor: ${u.str('investor_verification')}'),
-                  TextButton(onPressed: () => _verifyInvestor(u, 'verify'), child: const Text('Verify')),
-                  TextButton(onPressed: () => _verifyInvestor(u, 'reject'), child: const Text('Reject')),
+                  TextButton(onPressed: u.str('investor_verification') == 'unverified' ? null : () => _verifyInvestor(u, 'verify'), child: const Text('Verify')),
+                  TextButton(onPressed: u.str('investor_verification') == 'unverified' ? null : () => _verifyInvestor(u, 'reject'), child: const Text('Reject')),
                 ],
               ]),
             ]),

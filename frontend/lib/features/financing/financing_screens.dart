@@ -18,7 +18,7 @@ class MerchantFinancingScreen extends ConsumerWidget {
         padding: EdgeInsets.zero,
         child: PagedList<Offer>(
           load: (p) => ref.read(apiProvider).offers(page: p),
-          header: const Padding(padding: EdgeInsets.only(bottom: 12), child: InfoBanner('Invoice financing advances part of an unpaid invoice from investors. Requests are reviewed by BillFlow; nothing is guaranteed and nothing happens on-chain until approval.')),
+          header: const Padding(padding: EdgeInsets.only(bottom: 12), child: InfoBanner('Invoice financing advances part of an unpaid invoice from investors. Requests are reviewed by NEXA BILLFLOW; nothing is guaranteed and nothing happens on-chain until approval.')),
           empty: const EmptyState(icon: Icons.account_balance_outlined, title: 'No financing requests', message: 'Open an eligible unpaid invoice and choose “Request financing”.'),
           itemBuilder: (c, o) => OfferCard(o, onTap: () => c.push('/merchant/financing/${o.id}')),
         ),
@@ -257,7 +257,7 @@ class _Timeline extends StatelessWidget {
               Text(switch (order[i]) {
                 'REQUESTED' => 'Submitted',
                 'UNDER_REVIEW' => 'Under review',
-                'APPROVED' => 'Verified by BillFlow',
+                'APPROVED' => 'Verified by NEXA BILLFLOW',
                 'LISTED' => 'Open for funding (on-chain)',
                 'FUNDED' => 'Funded (verified on-chain)',
                 _ => 'Settled (verified on-chain)',

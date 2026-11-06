@@ -22,6 +22,9 @@ class _S extends ConsumerState<MarketplaceScreen> {
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(authProvider).valueOrNull;
+    if (profile != null && profile.investorVerification != 'verified') {
+      return InvestorGate(profile.investorVerification, onAction: (r) => context.push(r));
+    }
     return ResponsiveBody(
       padding: EdgeInsets.zero,
       child: PagedList<Offer>(
@@ -30,7 +33,13 @@ class _S extends ConsumerState<MarketplaceScreen> {
         header: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const InfoBanner('Invoice financing carries credit risk. Discounts are not guaranteed returns: the debtor may pay late or not at all and you can lose funds. Read each disclosure before funding.', tone: BannerTone.warn, icon: Icons.gpp_maybe_outlined),
           if (profile != null && profile.investorVerification != 'verified')
-            Padding(padding: const EdgeInsets.only(top: 8), child: InfoBanner('Investor status: ${profile.investorVerification}. Funding may be restricted until an admin verifies your profile.')),
+            Padding(padding: const EdgeInsets.only(top: 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              InfoBanner('Investor status: ${profile.investorVerification}. Browsing and funding open up once an admin verifies your profile.'),
+              TextButton(
+                onPressed: () => context.push(profile.investorVerification == 'unverified' ? '/onboarding/investor' : '/investor/verification'),
+                child: Text(profile.investorVerification == 'unverified' ? 'Complete verification' : 'View verification status'),
+              ),
+            ])),
           const SizedBox(height: 10),
           Wrap(spacing: 8, children: [
             ChoiceChip(label: const Text('Open for funding'), selected: _status == 'LISTED', onSelected: (_) => setState(() { _status = 'LISTED'; _token++; })),
@@ -39,7 +48,7 @@ class _S extends ConsumerState<MarketplaceScreen> {
           ]),
           const SizedBox(height: 12),
         ]),
-        empty: const EmptyState(icon: Icons.storefront_outlined, title: 'No offers here right now', message: 'Offers appear once BillFlow has approved them and they are listed on-chain.'),
+        empty: const EmptyState(icon: Icons.storefront_outlined, title: 'No offers here right now', message: 'Offers appear once NEXA BILLFLOW has approved them and they are listed on-chain.'),
         itemBuilder: (c, o) => OfferCard(o, onTap: () => c.push('/investor/offers/${o.id}')),
       ),
     );

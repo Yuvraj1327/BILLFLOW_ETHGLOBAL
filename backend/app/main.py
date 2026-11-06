@@ -1,4 +1,4 @@
-"""BillFlow API entrypoint. Run: uvicorn app.main:app --reload"""
+"""NEXA BILLFLOW API entrypoint. Run: uvicorn app.main:app --reload"""
 from __future__ import annotations
 
 import logging
@@ -43,13 +43,14 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     s = get_settings()
-    app = FastAPI(title="BillFlow API", version="0.4.0", lifespan=lifespan, openapi_tags=TAGS,
+    app = FastAPI(title="NEXA BILLFLOW API", version="0.4.0", lifespan=lifespan, openapi_tags=TAGS,
                   docs_url="/docs" if s.enable_docs else None, redoc_url="/redoc" if s.enable_docs else None,
                   openapi_url="/openapi.json" if s.enable_docs else None,
                   description="Web3 invoicing, USDT payments and invoice financing on Whitechain Sepolia (chain 1874). "
                               "Send `Authorization: Bearer <Supabase access token>`.")
-    if s.cors_list:
-        app.add_middleware(CORSMiddleware, allow_origins=s.cors_list, allow_methods=["*"], allow_headers=["*"], allow_credentials=False)
+    if s.cors_list or s.cors_origin_regex:
+        app.add_middleware(CORSMiddleware, allow_origins=s.cors_list, allow_origin_regex=s.cors_origin_regex,
+                           allow_methods=["*"], allow_headers=["*"], allow_credentials=False)
     install_handlers(app)
     for r in (auth.router, users.router, businesses.router, invoices.router, payments.router, financing.router,
               investors.router, ai.router, blockchain.router, admin.router, public.router, merchant_api.router,

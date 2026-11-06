@@ -14,6 +14,7 @@ from app.core.config import Settings, get_settings
 from app.core.database import transaction
 from app.core.exceptions import AppError, forbidden, not_found, unauthorized
 from app.core.security import verify_jwt
+from app.repositories import profiles as prof
 
 _bearer = HTTPBearer(auto_error=False, description="Supabase access token")
 
@@ -33,11 +34,15 @@ def current_user(creds: Annotated[HTTPAuthorizationCredentials | None, Depends(_
     if creds is None or creds.scheme.lower() != "bearer":
         raise unauthorized()
     claims = verify_jwt(creds.credentials, settings)
+    cols = "id, email, role, wallet_address, display_name, investor_verification"
     with transaction() as c:
-        row = c.execute("select id, email, role, wallet_address, display_name, investor_verification from profiles where id = %s",
-                        (claims["sub"],)).fetchone()
+        row = c.execute(f"select {cols} from profiles where id = %s", (claims["sub"],)).fetchone()
+        if row is None:  # the signup trigger did not run (or lagged): create the profile now, idempotently
+            meta = claims.get("user_metadata") or {}
+            prof.ensure(c, claims["sub"], claims.get("email"), meta.get("role"), meta.get("display_name"))
+            row = c.execute(f"select {cols} from profiles where id = %s", (claims["sub"],)).fetchone()
     if row is None:
-        raise forbidden("No profile exists for this account", "no_profile")
+        raise unauthorized("This account no longer exists", "no_account")
     return CurrentUser(id=row["id"], email=row["email"], role=row["role"], wallet_address=row["wallet_address"],
                        display_name=row["display_name"], investor_verification=row["investor_verification"])
 
@@ -72,6 +77,8 @@ class BusinessCtx:
 
 def current_business(user: Merchant) -> BusinessCtx:
     with transaction() as c:
+        from app.repositories import businesses as biz  # local import: that module imports PageParams from here
+        biz.ensure_business(c, user.id, user.display_name, user.email)  # no-op when a business exists
         row = c.execute(
             """select b.id, 'owner' as member_role from businesses b where b.owner_id = %s
                union all

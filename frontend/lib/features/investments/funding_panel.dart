@@ -43,7 +43,7 @@ class _S extends ConsumerState<FundingPanel> {
       setState(() => _step = 'Connecting wallet');
       final addr = await ensureWallet(ref, chainId: cfg.chainId, explorer: cfg.explorerUrl);
       if (profile?.walletAddress == null || profile!.walletAddress!.toLowerCase() != addr.toLowerCase()) {
-        throw AppException('wallet_not_linked', 'Link this wallet to your account first (Profile → Link wallet). Otherwise BillFlow cannot attribute the investment to you.');
+        throw AppException('wallet_not_linked', 'Link this wallet to your account first (Profile → Link wallet). Otherwise NEXA BILLFLOW cannot attribute the investment to you.');
       }
 
       final chain = ref.read(chainReaderProvider);
@@ -66,7 +66,7 @@ class _S extends ConsumerState<FundingPanel> {
       final hash = await walletSend(ref, to: cfg.financing!, data: encodeFund(onchainId), chainId: cfg.chainId, explorer: cfg.explorerUrl);
       setState(() {
         _tx = hash;
-        _step = 'Submitted. Waiting for BillFlow to verify it on-chain';
+        _step = 'Submitted. Waiting for NEXA BILLFLOW to verify it on-chain';
       });
       final r = await pollVerification(() => ref.read(apiProvider).verifyFinancingTx(hash), onUpdate: (v) {
         if (mounted) setState(() => _result = v);

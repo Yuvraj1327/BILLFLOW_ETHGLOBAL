@@ -48,9 +48,22 @@ def test_wrong_audience_and_alg_none(w, client):
     assert client.get(f"{API}/users/me", headers={"Authorization": f"Bearer {forged}"}).status_code == 401
 
 
-def test_token_without_profile_forbidden(client):
+def test_token_for_unknown_account_rejected(client):
     r = client.get(f"{API}/users/me", headers={"Authorization": f"Bearer {token(uuid.uuid4())}"})
-    assert r.status_code == 403 and r.json()["error"]["code"] == "no_profile"
+    assert r.status_code == 401 and r.json()["error"]["code"] == "no_account"
+
+
+def test_missing_profile_is_created_idempotently(w, client):
+    """Auth user exists but the signup trigger never produced a profile: first request creates it (role clamped), repeats are no-ops."""
+    uid = uuid.uuid4()
+    w.c.execute("insert into auth.users (id, email, raw_user_meta_data) values (%s,'late@x.io','{}')", (uid,))
+    w.c.execute("delete from profiles where id=%s", (uid,))
+    h = {"Authorization": "Bearer " + token(uid, email="late@x.io", user_metadata={"role": "investor", "display_name": "Late"})}
+    for _ in range(2):
+        r = client.get(f"{API}/users/me", headers=h)
+        assert r.status_code == 200 and r.json()["role"] == "investor"
+    h2 = {"Authorization": "Bearer " + token(uid, user_metadata={"role": "admin"})}
+    assert client.get(f"{API}/users/me", headers=h2).json()["role"] == "investor"
 
 
 def test_frontend_cannot_choose_role(w, client):

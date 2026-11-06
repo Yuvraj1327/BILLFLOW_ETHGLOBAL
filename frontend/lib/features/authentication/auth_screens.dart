@@ -8,82 +8,22 @@ import '../../app/theme/app_theme.dart';
 import '../../core/config/app_config.dart';
 import '../../core/errors/app_exception.dart';
 import '../../core/utils/validators.dart' as v;
+import '../../core/widgets/brand_logo.dart';
 import '../../core/widgets/widgets.dart';
 
 class Splash extends StatelessWidget {
   const Splash({super.key});
   @override
   Widget build(BuildContext context) => const Scaffold(body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        _Logo(size: 64), SizedBox(height: 24), CircularProgressIndicator()])));
-}
-
-class _Logo extends StatelessWidget {
-  const _Logo({this.size = 40});
-  final double size;
-  @override
-  Widget build(BuildContext context) => Container(
-        width: size, height: size,
-        decoration: BoxDecoration(gradient: const LinearGradient(colors: [Tokens.blue, Tokens.blueDeep]), borderRadius: BorderRadius.circular(size * .28)),
-        child: Icon(Icons.receipt_long, color: Colors.white, size: size * .55),
-      );
+        BrandLockup(height: 72, stacked: true), SizedBox(height: 32), CircularProgressIndicator()])));
 }
 
 class ConfigErrorScreen extends StatelessWidget {
   const ConfigErrorScreen({super.key});
   @override
-  Widget build(BuildContext context) => const Scaffold(
+  Widget build(BuildContext context) => Scaffold(
         body: EmptyState(icon: Icons.settings_suggest, title: 'App is not configured',
-            message: 'Build with --dart-define-from-file=env.json containing API_BASE_URL, SUPABASE_URL and SUPABASE_ANON_KEY (see app/README.md).'));
-}
-
-class WelcomeScreen extends StatelessWidget {
-  const WelcomeScreen({super.key});
-  @override
-  Widget build(BuildContext context) {
-    final points = const [
-      (Icons.payments_outlined, 'Get paid in USDT', 'Share a payment link. Customers pay with their own wallet on Whitechain.'),
-      (Icons.account_balance_outlined, 'Finance unpaid invoices', 'Request an advance; verified investors fund it on-chain.'),
-      (Icons.auto_awesome_outlined, 'AI-assisted invoices', 'Claude extracts and checks invoice data. You always confirm.'),
-    ];
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: ResponsiveBody(
-            maxWidth: 560,
-            padding: const EdgeInsets.all(24),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const SizedBox(height: 32),
-              const _Logo(size: 56),
-              const SizedBox(height: 24),
-              Text('BillFlow', style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w800)),
-              const SizedBox(height: 8),
-              Text('Business payments and invoice financing on ${AppConfig.chainName}.', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 28),
-              for (final p in points)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: AppCard(child: Row(children: [
-                    Icon(p.$1, color: Tokens.blue, size: 28),
-                    const SizedBox(width: 14),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(p.$2, style: const TextStyle(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 2),
-                      Text(p.$3, style: TextStyle(color: Theme.of(context).hintColor)),
-                    ])),
-                  ])),
-                ),
-              const SizedBox(height: 12),
-              SizedBox(width: double.infinity, child: FilledButton(onPressed: () => context.go('/register'), child: const Text('Create account'))),
-              const SizedBox(height: 10),
-              SizedBox(width: double.infinity, child: OutlinedButton(onPressed: () => context.go('/login'), child: const Text('Log in'))),
-              const SizedBox(height: 16),
-              const Text('Testnet demo. Illustrative terms only; nothing here is a guaranteed return.', style: TextStyle(fontSize: 12)),
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
+            message: '${AppConfig.problem ?? 'Configuration is missing.'}\nCopy frontend/.env.example to frontend/.env and fill in the public values (see frontend/README.md).'));
 }
 
 class _AuthScaffold extends StatelessWidget {
@@ -91,11 +31,59 @@ class _AuthScaffold extends StatelessWidget {
   final String title;
   final Widget child;
   final Widget? footer;
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(title), leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/welcome'))),
-        body: SafeArea(child: SingleChildScrollView(child: ResponsiveBody(maxWidth: 480, padding: const EdgeInsets.all(24), child: Column(children: [child, if (footer != null) ...[const SizedBox(height: 16), footer!]])))),
+  Widget build(BuildContext context) {
+    final desktop = MediaQuery.sizeOf(context).width >= 960;
+    final form = SafeArea(
+      child: Center(
+        child: SingleChildScrollView(
+          child: ResponsiveBody(
+            maxWidth: 460,
+            padding: const EdgeInsets.all(24),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              if (desktop) ...[
+                Text(title, style: Theme.of(context).textTheme.headlineMedium),
+                const SizedBox(height: 24),
+              ],
+              child,
+              if (footer != null) ...[const SizedBox(height: 16), Center(child: footer!)],
+            ]),
+          ),
+        ),
+      ),
+    );
+    if (!desktop) {
+      return Scaffold(
+        appBar: AppBar(title: BrandTitle(title), leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/welcome'))),
+        body: form,
       );
+    }
+    return Scaffold(
+      body: Row(children: [
+        Expanded(
+          flex: 5,
+          child: Container(
+            decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Tokens.blueDeep, Tokens.blue, Color(0xFF01575F)])),
+            padding: const EdgeInsets.all(56),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              InkWell(onTap: () => context.go('/welcome'), child: const BrandLockup(height: 40, onDark: true)),
+              const Spacer(),
+              const Text('Get paid in USDT.\nFinance your invoices.', style: TextStyle(color: Colors.white, fontSize: 42, fontWeight: FontWeight.w900, height: 1.1, letterSpacing: -1)),
+              const SizedBox(height: 16),
+              Text('Payment links, on-chain verification and an investor marketplace in one place.', style: TextStyle(color: Colors.white.withValues(alpha: .8), fontSize: 17, height: 1.5)),
+              const SizedBox(height: 32),
+              for (final t in const ['No account needed to pay an invoice', 'Every payment verified on-chain', 'Role-based, secure access'])
+                Padding(padding: const EdgeInsets.only(bottom: 10), child: Row(children: [const Icon(Icons.check_circle, color: Color(0xFF2CC4B7), size: 20), const SizedBox(width: 10), Text(t, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600))])),
+              const Spacer(),
+              Text('Testnet demo on ${AppConfig.chainName}.', style: TextStyle(color: Colors.white.withValues(alpha: .6), fontSize: 12.5)),
+            ]),
+          ),
+        ),
+        Expanded(flex: 6, child: form),
+      ]),
+    );
+  }
 }
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -119,9 +107,19 @@ class _LoginState extends ConsumerState<LoginScreen> {
     setState(() { _busy = true; _error = null; });
     try {
       await supabase.auth.signInWithPassword(email: _email.text.trim(), password: _pass.text);
-      // The router redirect takes over once the auth provider has loaded the backend profile.
+      // Load the BACKEND profile now so a failure (API down, wrong URL, no profile) is shown here instead of the
+      // router silently bouncing back to the welcome screen. On success the router sends the user to their dashboard.
+      ref.read(authNoticeProvider.notifier).state = null;
+      try {
+        await ref.read(authProvider.notifier).reload();
+        final st = ref.read(authProvider);
+        if (st.hasError) throw st.error!;
+      } catch (e) {
+        await supabase.auth.signOut();
+        if (mounted) setState(() => _error = 'Signed in, but your profile could not be loaded: ${errorText(e)}');
+      }
     } on sb.AuthException catch (e) {
-      setState(() => _error = e.message);
+      setState(() => _error = authErrorText(e));
     } catch (e) {
       setState(() => _error = errorText(e));
     } finally {
@@ -130,7 +128,9 @@ class _LoginState extends ConsumerState<LoginScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => _AuthScaffold(
+  Widget build(BuildContext context) {
+    final notice = widget.notice ?? ref.watch(authNoticeProvider);
+    return _AuthScaffold(
         title: 'Log in',
         footer: Column(children: [
           TextButton(onPressed: () => context.go('/forgot'), child: const Text('Forgot password?')),
@@ -139,7 +139,7 @@ class _LoginState extends ConsumerState<LoginScreen> {
         child: Form(
           key: _form,
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            if (widget.notice != null) ...[InfoBanner(widget.notice!, tone: BannerTone.warn), const SizedBox(height: 14)],
+            if (notice != null) ...[InfoBanner(notice, tone: BannerTone.warn), const SizedBox(height: 14)],
             TextFormField(controller: _email, keyboardType: TextInputType.emailAddress, autofillHints: const [AutofillHints.email], decoration: const InputDecoration(labelText: 'Email'), validator: v.email),
             const SizedBox(height: 14),
             TextFormField(
@@ -150,6 +150,68 @@ class _LoginState extends ConsumerState<LoginScreen> {
             if (_error != null) ...[const SizedBox(height: 14), InfoBanner(_error!, tone: BannerTone.error)],
             const SizedBox(height: 20),
             BusyButton(label: 'Log in', busy: _busy, onPressed: _submit),
+          ]),
+        ),
+      );
+  }
+}
+
+/// Admin accounts are created by an existing admin (never self-service). This screen only signs in, then verifies the
+/// BACKEND role: a non-admin account is signed straight back out.
+class AdminLoginScreen extends ConsumerStatefulWidget {
+  const AdminLoginScreen({super.key});
+  @override
+  ConsumerState<AdminLoginScreen> createState() => _AdminLoginState();
+}
+
+class _AdminLoginState extends ConsumerState<AdminLoginScreen> {
+  final _form = GlobalKey<FormState>();
+  final _email = TextEditingController(), _pass = TextEditingController();
+  bool _busy = false, _show = false;
+  String? _error;
+
+  @override
+  void dispose() { _email.dispose(); _pass.dispose(); super.dispose(); }
+
+  Future<void> _submit() async {
+    if (!_form.currentState!.validate()) return;
+    setState(() { _busy = true; _error = null; });
+    try {
+      await supabase.auth.signInWithPassword(email: _email.text.trim(), password: _pass.text);
+      final me = await ref.read(apiProvider).me();
+      if (!me.isAdmin) {
+        await supabase.auth.signOut();
+        if (mounted) setState(() => _error = 'This account does not have admin access.');
+      }
+    } on sb.AuthException catch (e) {
+      setState(() => _error = authErrorText(e));
+    } catch (e) {
+      await supabase.auth.signOut();
+      setState(() => _error = errorText(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => _AuthScaffold(
+        title: 'Admin sign in',
+        footer: TextButton(onPressed: () => context.go('/login'), child: const Text('Back to regular sign in')),
+        child: Form(
+          key: _form,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            const InfoBanner('Restricted area. Admin accounts are created by an existing administrator.', icon: Icons.lock_outline),
+            const SizedBox(height: 14),
+            TextFormField(controller: _email, keyboardType: TextInputType.emailAddress, autofillHints: const [AutofillHints.email], decoration: const InputDecoration(labelText: 'Admin email'), validator: v.email),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _pass, obscureText: !_show, autofillHints: const [AutofillHints.password], onFieldSubmitted: (_) => _submit(),
+              decoration: InputDecoration(labelText: 'Password', suffixIcon: IconButton(icon: Icon(_show ? Icons.visibility_off : Icons.visibility), onPressed: () => setState(() => _show = !_show))),
+              validator: (x) => v.required(x, 'Password'),
+            ),
+            if (_error != null) ...[const SizedBox(height: 14), InfoBanner(_error!, tone: BannerTone.error)],
+            const SizedBox(height: 20),
+            BusyButton(label: 'Sign in', busy: _busy, onPressed: _submit),
           ]),
         ),
       );
@@ -175,11 +237,17 @@ class _RegisterState extends ConsumerState<RegisterScreen> {
     if (!_form.currentState!.validate()) return;
     setState(() { _busy = true; _error = null; });
     try {
-      // `role` is only a REQUEST (merchant / investor / customer). The database trigger clamps it; admin is impossible here.
-      final res = await supabase.auth.signUp(email: _email.text.trim(), password: _pass.text, data: {'role': _role, 'display_name': _name.text.trim()});
-      if (res.session == null && mounted) setState(() => _sent = true); // email confirmation is enabled in Supabase
+      // The backend creates the Supabase user + profile (role is only a REQUEST: merchant / investor; admin is impossible).
+      // In development the account is pre-confirmed, so we can log in immediately and the router sends the user to their dashboard.
+      final out = await ref.read(apiProvider).signup(_email.text.trim(), _pass.text, _role, _name.text.trim());
+      if (out['confirmation_required'] == true) {
+        if (mounted) setState(() => _sent = true); // production project with e-mail confirmation enabled
+        return;
+      }
+      await supabase.auth.setSession(out['refresh_token'] as String);
+      await ref.read(authProvider.notifier).reload(); // verified role from the backend -> router redirects
     } on sb.AuthException catch (e) {
-      setState(() => _error = e.message);
+      setState(() => _error = authErrorText(e));
     } catch (e) {
       setState(() => _error = errorText(e));
     } finally {
@@ -211,7 +279,6 @@ class _RegisterState extends ConsumerState<RegisterScreen> {
             segments: const [
               ButtonSegment(value: 'merchant', label: Text('Merchant'), icon: Icon(Icons.storefront_outlined)),
               ButtonSegment(value: 'investor', label: Text('Investor'), icon: Icon(Icons.trending_up)),
-              ButtonSegment(value: 'customer', label: Text('Customer'), icon: Icon(Icons.person_outline)),
             ],
             selected: {_role},
             onSelectionChanged: (s) => setState(() => _role = s.first),
@@ -219,8 +286,7 @@ class _RegisterState extends ConsumerState<RegisterScreen> {
           const SizedBox(height: 6),
           Text(switch (_role) {
             'merchant' => 'Issue invoices, get paid in USDT, request financing.',
-            'investor' => 'Fund verified invoices on-chain. Requires a linked wallet.',
-            _ => 'View your payments. You can also pay any invoice link without an account.',
+            _ => 'Fund verified invoices on-chain. You will complete a short verification first.',
           }, style: TextStyle(color: Theme.of(context).hintColor, fontSize: 13)),
           const SizedBox(height: 16),
           TextFormField(controller: _name, decoration: const InputDecoration(labelText: 'Your name'), validator: (x) => v.required(x, 'Name')),
@@ -232,7 +298,7 @@ class _RegisterState extends ConsumerState<RegisterScreen> {
           const SizedBox(height: 20),
           BusyButton(label: 'Create account', busy: _busy, onPressed: _submit),
           const SizedBox(height: 10),
-          const Text('Admin accounts cannot be created here.', style: TextStyle(fontSize: 12)),
+          const Text('Paying an invoice? No account needed: just open the payment link you were sent.', style: TextStyle(fontSize: 12)),
         ]),
       ),
     );
@@ -258,7 +324,7 @@ class _ForgotState extends State<ForgotScreen> {
       await supabase.auth.resetPasswordForEmail(_email.text.trim());
       setState(() => _sent = true);
     } on sb.AuthException catch (e) {
-      setState(() => _error = e.message);
+      setState(() => _error = authErrorText(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

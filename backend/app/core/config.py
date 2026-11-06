@@ -84,6 +84,18 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     @property
+    def jwks_url(self) -> str | None:
+        """Explicit URL, else derived from SUPABASE_URL (Supabase projects with asymmetric signing keys publish it there)."""
+        if self.supabase_jwt_jwks_url:
+            return self.supabase_jwt_jwks_url
+        return f"{self.supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json" if self.supabase_url else None
+
+    @property
+    def cors_origin_regex(self) -> str | None:
+        """Flutter web's dev server picks a random localhost port, so allow any localhost port outside production only."""
+        return None if self.is_production else r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+
+    @property
     def is_production(self) -> bool:
         return self.app_env.lower() == "production"
 

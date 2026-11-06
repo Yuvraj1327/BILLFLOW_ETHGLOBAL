@@ -44,4 +44,15 @@ void main() {
     expect(v.optionalAddress(''), isNull);
     expect(v.optionalAddress('0xzz'), isNotNull);
   });
+  test('parsePaymentToken accepts links and bare tokens only', () {
+    final t = 'a' * 43;
+    expect(v.parsePaymentToken(t), t);
+    expect(v.parsePaymentToken(' https://pay.example.com/pay/$t '), t);
+    expect(v.parsePaymentToken('https://app.example.com/#/pay/$t'), t);
+    expect(v.parsePaymentToken('https://x.io/pay/$t?utm=1'), t);
+    expect(v.parsePaymentToken('https://x.io/checkout?token=$t'), t);
+    expect(v.parsePaymentToken('https://x.io/pay/short'), isNull);
+    expect(v.parsePaymentToken('hello world'), isNull);
+    expect(v.parsePaymentToken(''), isNull);
+  });
 }

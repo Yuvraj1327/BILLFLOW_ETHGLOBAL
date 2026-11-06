@@ -1,5 +1,5 @@
 name: billflow
-description: BillFlow - USDT invoice payments and RWA invoice financing on Whitechain Sepolia.
+description: NEXA BILLFLOW - USDT invoice payments and invoice financing on Whitechain Sepolia.
 publish_to: "none"
 version: 0.4.0+1
 
@@ -26,6 +26,7 @@ dependencies:
   printing: ^5.13.1
   intl: ^0.19.0
   image: ">=4.5.0 <4.10.0"
+  flutter_dotenv: ^6.0.1
 
 dev_dependencies:
   flutter_test:
@@ -34,3 +35,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/brand/
+    - .env   # PUBLIC client configuration only (bundled into the app, readable by anyone who installs it)

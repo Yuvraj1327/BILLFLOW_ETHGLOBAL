@@ -56,7 +56,7 @@ class _S extends ConsumerState<CustomerHome> {
             ),
             const SectionTitle('Your payments'),
           ]),
-          empty: const EmptyState(icon: Icons.receipt_long_outlined, title: 'No payments yet', message: 'Payments you make from this account appear here once verified by BillFlow.'),
+          empty: const EmptyState(icon: Icons.receipt_long_outlined, title: 'No payments yet', message: 'Payments you make from this account appear here once verified by NEXA BILLFLOW.'),
           itemBuilder: (c, p) => AppCard(
             child: Row(children: [
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

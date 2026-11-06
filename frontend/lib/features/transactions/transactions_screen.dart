@@ -16,7 +16,7 @@ class TransactionsScreen extends ConsumerWidget {
     final p = ref.watch(authProvider).valueOrNull;
     if (p == null) return const SizedBox.shrink();
     final api = ref.read(apiProvider);
-    const empty = EmptyState(icon: Icons.swap_horiz, title: 'No transactions yet', message: 'Only on-chain activity verified by BillFlow is listed.');
+    const empty = EmptyState(icon: Icons.swap_horiz, title: 'No transactions yet', message: 'Only on-chain activity verified by NEXA BILLFLOW is listed.');
 
     if (p.isAdmin) {
       return ResponsiveBody(

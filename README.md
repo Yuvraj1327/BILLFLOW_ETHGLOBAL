@@ -1,4 +1,4 @@
-# BillFlow
+# NEXA BILLFLOW
 
 **Business Payments & Invoice Financing, Powered by Blockchain.** ETHGlobal Mumbai · Whitechain tracks **Operate** (stablecoin payments for business) and **Tokenize** (real-world finance).
 
@@ -32,7 +32,7 @@ works with just a wallet; investors need verifiable, on-chain evidence of what t
 | Backend hosting | ⏳ Config prepared (`backend/Dockerfile`, `render.yaml`), **not deployed, image never built** | |
 | Android APK/AAB | ⏳ **Not built** (no Flutter SDK available) | |
 
-## Operate track — BillFlow Checkout (drop-in USDT payments)
+## Operate track — NEXA BILLFLOW Checkout (drop-in USDT payments)
 Any merchant app integrates in ~20 lines: create a session server-side with an API key, open the widget (or redirect to the hosted
 page), receive a **signed webhook**, and refund (full/partial, on-chain) when needed. The customer pays **official testnet USDT on
 Whitechain Sepolia straight to the merchant**; a payment counts only after the backend verifies it on-chain. See
@@ -68,9 +68,9 @@ cd contracts && ./install-deps.sh && forge build && forge test
 cd backend && pip install -r requirements-dev.txt && cp .env.example .env     # fill in
 pytest                                   # needs a local Postgres (see tests/conftest.py); local-chain e2e needs anvil + forge build
 uvicorn app.main:app --reload            # http://localhost:8000/docs
-# app
-cd app && flutter create . --platforms=web,android,ios && flutter pub get && flutter analyze && flutter test
-flutter run -d chrome --dart-define-from-file=env.json
+# frontend (copy frontend/.env.example to frontend/.env first: PUBLIC values only)
+cd frontend && flutter create . --platforms=web,android,ios && flutter pub get && flutter analyze && flutter test
+flutter run -d chrome
 ```
 Apply `supabase/migrations/0001…0003` in order to a Supabase project.
 

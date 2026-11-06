@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import secrets
+import ssl
 from typing import Any
 
+import certifi
 import jwt
 from jwt import PyJWKClient
 
@@ -16,7 +18,7 @@ _jwks_clients: dict[str, PyJWKClient] = {}
 
 def _jwks(url: str) -> PyJWKClient:
     if url not in _jwks_clients:
-        _jwks_clients[url] = PyJWKClient(url, cache_keys=True, lifespan=3600)
+        _jwks_clients[url] = PyJWKClient(url, cache_keys=True, lifespan=3600, ssl_context=ssl.create_default_context(cafile=certifi.where()))
     return _jwks_clients[url]
 
 
@@ -35,9 +37,9 @@ def verify_jwt(token: str, s: Settings) -> dict[str, Any]:
                 raise unauthorized("Invalid token", "invalid_token")
             key: Any = s.supabase_jwt_secret
         elif alg in _ASYMMETRIC:
-            if not s.supabase_jwt_jwks_url:
+            if not s.jwks_url:
                 raise unauthorized("Invalid token", "invalid_token")
-            key = _jwks(s.supabase_jwt_jwks_url).get_signing_key_from_jwt(token).key
+            key = _jwks(s.jwks_url).get_signing_key_from_jwt(token).key
         else:
             raise unauthorized("Invalid token", "invalid_token")
         claims = jwt.decode(token, key, algorithms=[alg], audience=s.supabase_jwt_audience,

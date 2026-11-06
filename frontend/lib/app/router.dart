@@ -6,6 +6,7 @@ import '../core/config/app_config.dart';
 import '../features/admin/admin_screens.dart';
 import '../features/authentication/auth_screens.dart';
 import '../features/checkout/checkout_screen.dart';
+import '../features/checkout/pay_invoice_screen.dart';
 import '../features/checkout/receipt_screen.dart';
 import '../features/customers/customer_screens.dart';
 import '../features/dashboard/merchant_dashboard.dart';
@@ -15,8 +16,11 @@ import '../features/invoices/invoice_form_screen.dart';
 import '../features/invoices/invoice_list_screen.dart';
 import '../features/marketplace/marketplace_screens.dart';
 import '../features/investments/portfolio_screen.dart';
+import '../features/landing/landing_page.dart';
 import '../features/notifications/notifications_screen.dart';
 import '../features/onboarding/business_onboarding.dart';
+import '../features/reports/reports_screen.dart';
+import '../features/onboarding/investor_onboarding.dart';
 import '../features/business/business_profile_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/settings/settings_screen.dart';
@@ -33,20 +37,21 @@ String homeFor(Profile p) => switch (p.role) {
       _ => '/customer',
     };
 
-const _authRoutes = {'/welcome', '/login', '/register', '/forgot', '/splash'};
+const _authRoutes = {'/welcome', '/login', '/admin-login', '/register', '/forgot', '/splash'};
 
 /// Pure redirect function (also used by tests). Roles come from the BACKEND profile only.
 String? computeRedirect({required String loc, required bool configured, required AsyncValue<Profile?> auth}) {
   if (!configured) return loc == '/setup-error' ? null : '/setup-error';
-  if (loc.startsWith('/pay/') || loc.startsWith('/receipt/')) return null; // public checkout works without login
+  if (loc == '/pay' || loc.startsWith('/pay/') || loc.startsWith('/receipt/')) return null; // public checkout works without login
   if (auth.isLoading && !auth.hasValue) return loc == '/splash' ? null : '/splash';
   final p = auth.valueOrNull;
   if (p == null) return (_authRoutes.contains(loc) && loc != '/splash') ? null : '/welcome';
   final home = homeFor(p);
   if (_authRoutes.contains(loc)) return home;
-  final needsBusiness = p.isMerchant && p.businessId == null;
-  if (needsBusiness && loc != '/onboarding/business') return '/onboarding/business';
-  if (!needsBusiness && loc == '/onboarding/business') return home;
+  // No forced onboarding: merchants and investors land on their dashboard; business setup / investor verification are
+  // optional prompts there (the backend still enforces verification where it matters, e.g. funding).
+  if (loc == '/onboarding/investor' && !p.isInvestor) return home;
+  if (loc == '/onboarding/business' && !p.isMerchant) return home;
   const guards = {'/merchant': 'merchant', '/investor': 'investor', '/admin': 'admin', '/customer': 'customer'};
   for (final e in guards.entries) {
     if ((loc == e.key || loc.startsWith('${e.key}/')) && p.role != e.value) return home;
@@ -70,13 +75,17 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/splash', builder: (_, __) => const Splash()),
       GoRoute(path: '/setup-error', builder: (_, __) => const ConfigErrorScreen()),
-      GoRoute(path: '/welcome', builder: (_, __) => const WelcomeScreen()),
+      GoRoute(path: '/welcome', builder: (_, __) => const LandingPage()),
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+      GoRoute(path: '/admin-login', builder: (_, __) => const AdminLoginScreen()),
       GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
       GoRoute(path: '/forgot', builder: (_, __) => const ForgotScreen()),
       // Public routes: no login required.
+      GoRoute(path: '/pay', builder: (_, __) => const PayInvoiceScreen()),
       GoRoute(path: '/pay/:token', builder: (_, s) => CheckoutScreen(token: s.pathParameters['token']!)),
       GoRoute(path: '/receipt/:token/:tx', builder: (_, s) => ReceiptScreen(token: s.pathParameters['token']!, txHash: s.pathParameters['tx']!)),
+      GoRoute(path: '/onboarding/investor', builder: (_, __) => const InvestorOnboardingScreen()),
+      GoRoute(path: '/investor/verification', builder: (_, __) => const InvestorVerificationScreen()),
       GoRoute(path: '/onboarding/business', builder: (_, __) => const BusinessOnboardingScreen()),
       ShellRoute(
         builder: (_, state, child) => AppShell(location: state.matchedLocation, child: child),
@@ -96,6 +105,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(path: ':id', builder: (_, s) => OfferDetailScreen(id: s.pathParameters['id']!)),
             ]),
             GoRoute(path: 'business', builder: (_, __) => const BusinessProfileScreen()),
+            GoRoute(path: 'reports', builder: (_, __) => const ReportsScreen()),
           ]),
           GoRoute(path: '/investor', builder: (_, __) => const MarketplaceScreen(), routes: [
             GoRoute(path: 'offers/:id', builder: (_, s) => OfferDetailScreen(id: s.pathParameters['id']!)),

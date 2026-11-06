@@ -49,6 +49,8 @@ class GoTrue:
         msg = "Authentication failed"
         try:
             body = r.json()
+            if body.get("error_code") in ("email_exists", "user_already_exists"):
+                return AppError(409, "email_exists", "An account with this email already exists. Log in instead.")
             msg = body.get("msg") or body.get("error_description") or body.get("message") or msg
         except Exception:  # noqa: BLE001
             pass
@@ -57,6 +59,11 @@ class GoTrue:
 
     def signup(self, email, password, role, display_name):
         # `role` is only a *request*: the DB trigger clamps it to merchant/investor/customer. admin is impossible here.
+        s = get_settings()
+        if not s.is_production and s.supabase_service_role_key:
+            # Development: create the user already e-mail-confirmed and log straight in (no confirmation step).
+            self.admin_create_user(email, password, display_name, role=role)
+            return self.login(email, password)
         r = self._post("/signup", {"email": email, "password": password,
                                    "data": {"role": role, "display_name": display_name}})
         if r.status_code >= 400:
@@ -81,7 +88,7 @@ class GoTrue:
             raise upstream("supabase_unavailable", "Auth provider error")
 
 
-    def admin_create_user(self, email, password, display_name):
+    def admin_create_user(self, email, password, display_name, role=None):
         """Service-role call: creates an e-mail-confirmed user. Never reachable from the public signup path."""
         key = get_settings().supabase_service_role_key
         if not key:
@@ -89,7 +96,7 @@ class GoTrue:
         try:
             r = httpx.post(self.base + "/admin/users", headers={"apikey": key, "Authorization": f"Bearer {key}"}, timeout=15,
                            json={"email": email, "password": password, "email_confirm": True,
-                                 "user_metadata": {"display_name": display_name}})
+                                 "user_metadata": {"display_name": display_name, **({"role": role} if role else {})}})
         except httpx.HTTPError as e:
             raise upstream("supabase_unavailable", f"Auth provider unreachable: {type(e).__name__}") from e
         if r.status_code >= 400:

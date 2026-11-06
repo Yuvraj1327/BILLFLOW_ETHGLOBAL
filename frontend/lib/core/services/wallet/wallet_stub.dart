@@ -7,7 +7,7 @@ class UnsupportedWalletService implements WalletService {
   bool get isAvailable => false;
   @override
   String get unavailableReason =>
-      'No browser wallet is available on this platform. Open BillFlow in a desktop browser with MetaMask (or another EVM wallet). '
+      'No browser wallet is available on this platform. Open NEXA BILLFLOW in a desktop browser with MetaMask (or another EVM wallet). '
       'Mobile WalletConnect is not implemented in this build.';
 
   Never _no() => throw WalletException(WalletErrorKind.unavailable, unavailableReason);

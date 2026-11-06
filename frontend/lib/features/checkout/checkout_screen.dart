@@ -1,3 +1,4 @@
+import '../../core/widgets/brand_logo.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -26,7 +27,7 @@ class CheckoutScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final inv = ref.watch(publicInvoiceProvider(token));
     return Scaffold(
-      appBar: AppBar(title: const Text('BillFlow checkout'), automaticallyImplyLeading: false),
+      appBar: AppBar(title: const BrandTitle('NEXA BILLFLOW checkout'), automaticallyImplyLeading: false),
       body: SingleChildScrollView(
         child: ResponsiveBody(
           maxWidth: 620,
@@ -136,7 +137,7 @@ class _BodyState extends ConsumerState<_Body> {
             return;
           }
         } catch (_) {}
-        if (!_disposed) setState(() { _phase = _Phase.pending; _step = ok == null ? 'Waiting for the network to include your transaction' : 'Mined. Waiting for BillFlow to verify it on-chain'; });
+        if (!_disposed) setState(() { _phase = _Phase.pending; _step = ok == null ? 'Waiting for the network to include your transaction' : 'Mined. Waiting for NEXA BILLFLOW to verify it on-chain'; });
         await Future<void>.delayed(const Duration(seconds: 5));
       }
       if (!_disposed) setState(() { _phase = _Phase.pending; _step = 'Still waiting for verification. You can safely close this page; your payment will show as paid once verified.'; });
@@ -240,7 +241,7 @@ class _BodyState extends ConsumerState<_Body> {
             if (!svc.isAvailable)
               InfoBanner('${svc.unavailableReason}\nOpen this link in a desktop browser with a wallet extension (such as MetaMask), or in your wallet app’s built-in browser.', tone: BannerTone.warn)
             else if (!w.connected) ...[
-              const Text('Connect your wallet to continue. BillFlow never sees your private key.'),
+              const Text('Connect your wallet to continue. NEXA BILLFLOW never sees your private key.'),
               const SizedBox(height: 10),
               BusyButton(label: 'Connect wallet', icon: Icons.account_balance_wallet_outlined, busy: w.busy, onPressed: () => ref.read(walletProvider.notifier).connect()),
             ] else ...[
@@ -271,7 +272,7 @@ class _BodyState extends ConsumerState<_Body> {
             Text(_step),
             if (_tx != null) KeyValue('Transaction', null, child: TxLink(_tx!)),
             const SizedBox(height: 4),
-            Text('This is not marked as paid until BillFlow verifies it on-chain. Do not pay again.', style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
+            Text('This is not marked as paid until NEXA BILLFLOW verifies it on-chain. Do not pay again.', style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
           ]),
         ),
       ],
@@ -280,7 +281,7 @@ class _BodyState extends ConsumerState<_Body> {
         InfoBanner(_error!, tone: _phase == _Phase.pending ? BannerTone.warn : BannerTone.error),
       ],
       const SizedBox(height: 16),
-      Center(child: Text('Testnet · Payments are verified on-chain by the BillFlow backend', style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12))),
+      Center(child: Text('Testnet · Payments are verified on-chain by the NEXA BILLFLOW backend', style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12))),
     ]);
   }
 
@@ -288,7 +289,7 @@ class _BodyState extends ConsumerState<_Body> {
     final p = _confirmed!;
     return AppCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const InfoBanner('Payment confirmed — verified on-chain by BillFlow.', tone: BannerTone.success, icon: Icons.verified),
+        const InfoBanner('Payment confirmed — verified on-chain by NEXA BILLFLOW.', tone: BannerTone.success, icon: Icons.verified),
         const SizedBox(height: 8),
         KeyValue('Amount', fmtUsdt(p.amount)),
         KeyValue('Confirmed', fmtDateTime(p.confirmedAt)),

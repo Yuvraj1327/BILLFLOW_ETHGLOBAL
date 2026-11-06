@@ -9,7 +9,7 @@ class BillFlowApp extends ConsumerWidget {
   const BillFlowApp({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) => MaterialApp.router(
-        title: 'BillFlow',
+        title: 'NEXA BILLFLOW',
         debugShowCheckedModeBanner: false,
         theme: lightTheme(),
         darkTheme: darkTheme(),

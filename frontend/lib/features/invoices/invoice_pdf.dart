@@ -47,7 +47,7 @@ Future<Uint8List> buildInvoicePdf({
       pw.SizedBox(height: 16),
       pw.Align(alignment: pw.Alignment.centerRight, child: pw.Text('Total: ${fmtUsdt(invoice.amount)}', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold))),
       pw.SizedBox(height: 24),
-      pw.Text('Payable in USDT on Whitechain Sepolia via the BillFlow payment link. A payment is confirmed only after on-chain verification.', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+      pw.Text('Payable in USDT on Whitechain Sepolia via the NEXA BILLFLOW payment link. A payment is confirmed only after on-chain verification.', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
       if (merchantWallet != null) pw.Text('Merchant payout wallet: $merchantWallet', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
     ],
   ));
@@ -86,7 +86,7 @@ Future<Uint8List> buildReceiptPdf({
     build: (c) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
       pw.Text('PAYMENT RECEIPT', style: pw.TextStyle(fontSize: 26, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)),
       pw.SizedBox(height: 6),
-      pw.Text('Verified on-chain by BillFlow', style: const pw.TextStyle(color: PdfColors.green800)),
+      pw.Text('Verified on-chain by NEXA BILLFLOW', style: const pw.TextStyle(color: PdfColors.green800)),
       pw.SizedBox(height: 24),
       for (final r in [
         ['Merchant', merchantName],
@@ -103,7 +103,7 @@ Future<Uint8List> buildReceiptPdf({
           pw.Expanded(child: pw.Text(r[1], style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
         ])),
       pw.SizedBox(height: 24),
-      pw.Text('Testnet payment. This receipt reflects chain data verified by the BillFlow backend at the time shown.', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+      pw.Text('Testnet payment. This receipt reflects chain data verified by the NEXA BILLFLOW backend at the time shown.', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
     ]),
   ));
   return doc.save();

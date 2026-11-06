@@ -18,7 +18,9 @@ router = APIRouter(tags=["Users"], responses=ERRORS)
 def load_profile(user_id) -> dict:
     with transaction() as c:
         p = prof.get(c, user_id)
-        b = biz_repo.business_of_user(c, user_id) if p and p["role"] == "merchant" else None
+        b = None
+        if p and p["role"] == "merchant":
+            b = biz_repo.business_of_user(c, user_id) or biz_repo.ensure_business(c, user_id, p["display_name"], p["email"])
     return {**p, "business_id": b["id"] if b else None}
 
 

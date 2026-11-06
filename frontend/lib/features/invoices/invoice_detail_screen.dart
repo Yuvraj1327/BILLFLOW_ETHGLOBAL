@@ -127,7 +127,7 @@ class _S extends ConsumerState<InvoiceDetailScreen> {
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         InfoBanner(
                           s.status == 'PAID'
-                              ? 'Paid in full — verified on-chain by the BillFlow backend.'
+                              ? 'Paid in full — verified on-chain by the NEXA BILLFLOW backend.'
                               : s.payments.isEmpty
                                   ? 'No verified payment yet. A payment is only counted after the backend verifies it on-chain; a wallet submission alone is not enough.'
                                   : 'Partially paid: ${fmtUsdt(s.remainingAmount)} remaining.',
@@ -248,7 +248,7 @@ class _S extends ConsumerState<InvoiceDetailScreen> {
             const SizedBox(height: 8),
             Wrap(spacing: 8, children: [
               FilledButton.icon(onPressed: () => copyText(context, _link!.url, 'Link copied'), icon: const Icon(Icons.copy), label: const Text('Copy')),
-              OutlinedButton.icon(onPressed: () => Share.share('Pay invoice via BillFlow: ${_link!.url}'), icon: const Icon(Icons.share), label: const Text('Share')),
+              OutlinedButton.icon(onPressed: () => Share.share('Pay invoice via NEXA BILLFLOW: ${_link!.url}'), icon: const Icon(Icons.share), label: const Text('Share')),
             ]),
           ]),
         ),

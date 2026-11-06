@@ -60,6 +60,14 @@ class ResponsiveBody extends StatelessWidget {
 
 bool isWide(BuildContext c) => MediaQuery.sizeOf(c).width >= 900;
 
+/// Layout classes used across the app: phone (bottom nav), tablet (rail), desktop (sidebar).
+enum Layout { mobile, tablet, desktop }
+
+Layout layoutOf(BuildContext c) {
+  final w = MediaQuery.sizeOf(c).width;
+  return w < 700 ? Layout.mobile : (w < 1100 ? Layout.tablet : Layout.desktop);
+}
+
 class AppCard extends StatelessWidget {
   const AppCard({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.onTap});
   final Widget child;
@@ -264,17 +272,60 @@ class StatTile extends StatelessWidget {
   final IconData? icon;
   final Color? color;
   @override
-  Widget build(BuildContext context) => AppCard(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            if (icon != null) ...[Icon(icon, size: 18, color: color ?? Theme.of(context).colorScheme.primary), const SizedBox(width: 6)],
-            Expanded(child: Text(label, style: TextStyle(color: Theme.of(context).hintColor, fontSize: 13))),
+  Widget build(BuildContext context) {
+    final c = color ?? Theme.of(context).colorScheme.primary;
+    return AppCard(
+      padding: const EdgeInsets.all(18),
+      child: ConstrainedBox(constraints: const BoxConstraints(minHeight: 84), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: TextStyle(color: Theme.of(context).hintColor, fontSize: 13, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 10),
+            FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800))),
+            if (sub != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text(sub!, style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12))),
           ]),
-          const SizedBox(height: 8),
-          FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800))),
-          if (sub != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text(sub!, style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12))),
-        ]),
-      );
+        ),
+        if (icon != null)
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(color: c.withValues(alpha: .1), borderRadius: BorderRadius.circular(12)),
+            child: Icon(icon, size: 20, color: c),
+          ),
+      ])),
+    );
+  }
+}
+
+/// Page heading with optional subtitle and actions; actions wrap under the title on narrow screens.
+class PageHeader extends StatelessWidget {
+  const PageHeader(this.title, {super.key, this.subtitle, this.actions = const []});
+  final String title;
+  final String? subtitle;
+  final List<Widget> actions;
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final text = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(title, style: t.textTheme.headlineSmall),
+      if (subtitle != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text(subtitle!, style: TextStyle(color: t.hintColor))),
+    ]);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: LayoutBuilder(builder: (c, box) => box.maxWidth >= 640 && actions.isNotEmpty
+          ? Row(crossAxisAlignment: CrossAxisAlignment.center, children: [Expanded(child: text), Wrap(spacing: 8, children: actions)])
+          : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [text, if (actions.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 12), child: Wrap(spacing: 8, runSpacing: 8, children: actions))])),
+    );
+  }
+}
+
+/// Two cards side by side on wide layouts, stacked on narrow ones.
+class TwoCol extends StatelessWidget {
+  const TwoCol(this.a, this.b, {super.key});
+  final Widget a, b;
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (c, box) => box.maxWidth >= 820
+      ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: a), const SizedBox(width: 16), Expanded(child: b)])
+      : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [a, const SizedBox(height: 4), b]));
 }
 
 /// Grid of tiles that reflows from 2 to 4 columns.
@@ -284,8 +335,22 @@ class StatGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(builder: (c, box) {
         final cols = box.maxWidth >= 860 ? 4 : (box.maxWidth >= 560 ? 3 : 2);
-        final w = (box.maxWidth - (cols - 1) * 12) / cols;
-        return Wrap(spacing: 12, runSpacing: 12, children: [for (final t in tiles) SizedBox(width: w, child: t)]);
+        final rows = <Widget>[];
+        for (var i = 0; i < tiles.length; i += cols) {
+          final slice = tiles.skip(i).take(cols).toList();
+          rows.add(Padding(
+            padding: EdgeInsets.only(bottom: i + cols < tiles.length ? 12 : 0),
+            child: IntrinsicHeight(
+              child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                for (var j = 0; j < cols; j++) ...[
+                  if (j > 0) const SizedBox(width: 12),
+                  Expanded(child: j < slice.length ? slice[j] : const SizedBox.shrink()),
+                ],
+              ]),
+            ),
+          ));
+        }
+        return Column(children: rows);
       });
 }
 
@@ -315,5 +380,40 @@ class StackedBar extends StatelessWidget {
           ]),
       ]),
     ]);
+  }
+}
+
+/// Shown instead of investor screens until an admin verifies the investor (the backend enforces this too).
+class InvestorGate extends StatelessWidget {
+  const InvestorGate(this.status, {super.key, required this.onAction});
+  final String status; // unverified | pending | rejected
+  final void Function(String route) onAction;
+  @override
+  Widget build(BuildContext context) {
+    final (icon, title, msg, label, route) = switch (status) {
+      'pending' => (Icons.hourglass_top_rounded, 'Verification in review', 'Thanks for submitting your details. An admin is reviewing them, and the marketplace opens as soon as you are verified.', 'View verification status', '/investor/verification'),
+      'rejected' => (Icons.error_outline, 'Verification needs attention', 'Your verification was not approved. Update your details and resubmit.', 'Update and resubmit', '/onboarding/investor'),
+      _ => (Icons.verified_user_outlined, 'Verify your investor profile', 'Complete a short verification to browse and fund invoice offers. It only takes a minute.', 'Start verification', '/onboarding/investor'),
+    };
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: AppCard(
+            padding: const EdgeInsets.all(28),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Tokens.teal.withValues(alpha: .12), shape: BoxShape.circle), child: Icon(icon, size: 36, color: Tokens.tealDeep)),
+              const SizedBox(height: 18),
+              Text(title, textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              Text(msg, textAlign: TextAlign.center, style: TextStyle(color: Theme.of(context).hintColor, height: 1.45)),
+              const SizedBox(height: 22),
+              FilledButton(onPressed: () => onAction(route), child: Text(label)),
+            ]),
+          ),
+        ),
+      ),
+    );
   }
 }

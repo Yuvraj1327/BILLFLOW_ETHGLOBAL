@@ -15,6 +15,20 @@ def create_business(c: Connection, owner_id, d: dict) -> dict:
     return b
 
 
+def ensure_business(c: Connection, user_id, display_name: str | None, email: str | None) -> dict | None:
+    """Idempotent starter business for a merchant (editable via PATCH /businesses/me). Serialised per user, so the several
+    requests a dashboard fires at once cannot create duplicates."""
+    b = business_of_user(c, user_id)
+    if b:
+        return b
+    c.execute("select pg_advisory_xact_lock(hashtextextended(%s, 0))", (f"biz:{user_id}",))
+    b = business_of_user(c, user_id)  # re-check: a concurrent request may have created it while we waited
+    if b:
+        return b
+    name = (display_name or "").strip() or (email or "").split("@")[0] or "My business"
+    return create_business(c, user_id, {"legal_name": name if len(name) >= 2 else "My business"})
+
+
 def get_business(c: Connection, business_id) -> dict | None:
     return c.execute("select * from businesses where id=%s", (business_id,)).fetchone()
 

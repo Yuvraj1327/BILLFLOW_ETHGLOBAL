@@ -179,3 +179,9 @@ def test_no_private_key_material_in_source():
     for p in (ROOT / "backend/app").rglob("*.py"):
         assert not pat.search(p.read_text()), f"64-hex literal in {p}"
     assert "ANTHROPIC_API_KEY=sk" not in (ROOT / "backend/.env.example").read_text()
+
+
+def test_public_endpoints_send_a_single_allow_origin_header(client):
+    """Regression: dev CORS regex + public middleware used to emit two Access-Control-Allow-Origin values (browsers reject that)."""
+    r = client.get("/api/v1/public/invoices/does-not-exist", headers={"Origin": "http://localhost:8099"})
+    assert [v for k, v in r.headers.multi_items() if k.lower() == "access-control-allow-origin"] == ["*"]

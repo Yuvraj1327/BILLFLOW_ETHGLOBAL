@@ -24,7 +24,9 @@ class PublicCorsMiddleware:
 
         async def wrapped(msg: Message) -> None:
             if msg["type"] == "http.response.start":
-                msg["headers"] = [*msg.get("headers", []), *_ALLOW[:1]]
+                # Replace, never append: the app-wide CORSMiddleware (dev localhost regex) may already have set this header, and
+                # browsers reject a response carrying two Access-Control-Allow-Origin values.
+                msg["headers"] = [*(h for h in msg.get("headers", []) if h[0].lower() != b"access-control-allow-origin"), *_ALLOW[:1]]
             await send(msg)
 
         await self.app(scope, receive, wrapped)

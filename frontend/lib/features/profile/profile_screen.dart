@@ -62,7 +62,7 @@ class _S extends ConsumerState<ProfileScreen> {
               const SizedBox(height: 12),
               Align(alignment: Alignment.centerLeft, child: BusyButton(label: 'Save', busy: _busy, onPressed: _save)),
               const SizedBox(height: 4),
-              Text('Your role is assigned and enforced by the BillFlow backend; it cannot be changed from the app.', style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
+              Text('Your role is assigned and enforced by the NEXA BILLFLOW backend; it cannot be changed from the app.', style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
             ]),
           ),
           const SizedBox(height: 12),

@@ -74,7 +74,7 @@ class WalletPanel extends ConsumerWidget {
         if (!svc.isAvailable)
           InfoBanner(svc.unavailableReason, tone: BannerTone.warn)
         else if (!w.connected) ...[
-          const Text('Connect an EVM wallet (e.g. MetaMask). BillFlow never sees your private key; every transaction is signed in your wallet.'),
+          const Text('Connect an EVM wallet (e.g. MetaMask). NEXA BILLFLOW never sees your private key; every transaction is signed in your wallet.'),
           const SizedBox(height: 10),
           BusyButton(label: 'Connect wallet', icon: Icons.link, busy: w.busy, onPressed: () => ref.read(walletProvider.notifier).connect()),
         ] else ...[
@@ -82,7 +82,7 @@ class WalletPanel extends ConsumerWidget {
           KeyValue('Network', w.chainId == null ? '—' : (target != null && w.chainId == target.chainId ? 'Whitechain Sepolia (${w.chainId})' : 'Chain ${w.chainId}')),
           if (wrongNet) ...[
             const SizedBox(height: 6),
-            const InfoBanner('Your wallet is on a different network than BillFlow uses.', tone: BannerTone.warn),
+            const InfoBanner('Your wallet is on a different network than NEXA BILLFLOW uses.', tone: BannerTone.warn),
             const SizedBox(height: 8),
             BusyButton(label: 'Switch to Whitechain Sepolia', busy: w.busy, onPressed: () => ref.read(walletProvider.notifier).switchNetwork(target.chainId, target.explorerUrl)),
           ],
@@ -93,7 +93,7 @@ class WalletPanel extends ConsumerWidget {
             OutlinedButton(
               onPressed: () {
                 ref.read(walletProvider.notifier).disconnect();
-                toast(context, 'Wallet forgotten in BillFlow. To revoke site access, disconnect it in your wallet extension.');
+                toast(context, 'Wallet forgotten in NEXA BILLFLOW. To revoke site access, disconnect it in your wallet extension.');
               },
               child: const Text('Disconnect'),
             ),

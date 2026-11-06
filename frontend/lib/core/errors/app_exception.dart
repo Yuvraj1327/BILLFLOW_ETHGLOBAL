@@ -25,7 +25,7 @@ class AppException implements Exception {
       case DioExceptionType.receiveTimeout:
         return AppException('timeout', 'The server took too long to respond. Please try again.');
       case DioExceptionType.connectionError:
-        return AppException('network', 'Cannot reach the BillFlow server. Check your connection and API_BASE_URL.');
+        return AppException('network', 'Cannot reach the NEXA BILLFLOW server. Check your connection and API_BASE_URL.');
       default:
         return AppException('http_${res?.statusCode ?? 0}', 'Unexpected server response (${res?.statusCode ?? 'no status'}).',
             status: res?.statusCode);
@@ -37,3 +37,17 @@ class AppException implements Exception {
 }
 
 String errorText(Object e) => e is AppException ? e.message : 'Something went wrong: $e';
+
+/// Human-readable text for Supabase Auth failures (raw GoTrue codes are not user friendly).
+String authErrorText(Object e) {
+  final code = (e as dynamic).code?.toString();
+  final msg = (e as dynamic).message?.toString() ?? '';
+  return switch (code) {
+    'invalid_credentials' => 'Incorrect email or password.',
+    'email_not_confirmed' => 'This email address is not confirmed yet. Confirm it from the email we sent, or ask an admin to confirm it.',
+    'user_already_exists' || 'email_exists' => 'An account with this email already exists. Try logging in.',
+    'over_request_rate_limit' || 'over_email_send_rate_limit' => 'Too many attempts. Wait a minute and try again.',
+    'weak_password' => msg.isEmpty ? 'Choose a stronger password.' : msg,
+    _ => msg.isEmpty ? 'Authentication failed.' : msg,
+  };
+}

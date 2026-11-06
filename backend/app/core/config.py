@@ -81,7 +81,8 @@ class Settings(BaseSettings):
 
     @property
     def cors_list(self) -> list[str]:
-        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        """Browsers send the Origin header without a trailing slash, so `https://app.vercel.app/` in the env var never matches."""
+        return [o.strip().rstrip("/") for o in self.cors_origins.split(",") if o.strip().strip("/")]
 
     @property
     def jwks_url(self) -> str | None:

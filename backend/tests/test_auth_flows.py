@@ -117,3 +117,9 @@ def test_es256_token_verified_via_jwks_derived_from_supabase_url(w, client, monk
     other = ec.generate_private_key(ec.SECP256R1())
     forged = jwt.encode({"sub": str(u["id"]), "aud": "authenticated", "exp": int(time.time()) + 600}, other, algorithm="ES256")
     assert client.get(f"{API}/users/me", headers={"Authorization": f"Bearer {forged}"}).status_code == 401
+
+
+def test_cors_origin_list_ignores_trailing_slashes_and_blanks():
+    from app.core.config import Settings
+    s = Settings(cors_origins=" https://nexa-billflow-eth-eight.vercel.app/ , ,http://localhost:8080")
+    assert s.cors_list == ["https://nexa-billflow-eth-eight.vercel.app", "http://localhost:8080"]

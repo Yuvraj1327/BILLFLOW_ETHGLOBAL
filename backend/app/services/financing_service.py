@@ -42,6 +42,7 @@ def serialize_offer(r: dict, s: Settings, role: str = "admin") -> dict:
         "status": status, "display_status": "OVERDUE" if overdue else FINANCING_DISPLAY.get(status, status), "is_overdue": overdue,
         "face_value": money(face, d), "face_value_base": str(face), "advance": money(adv, d), "advance_base": str(adv),
         "discount_bps": ((face - adv) * 10000) // face, "token_decimals": d, "maturity_date": r["maturity_date"],
+        "days_to_maturity": (r["maturity_date"] - date.today()).days,  # negative = days overdue (maturity countdown for the UI)
         "funding_deadline": r["funding_deadline"],
         "onchain_offer_id": str(int(r["onchain_offer_id"])) if r["onchain_offer_id"] is not None else None,
         "onchain_registered_at": r.get("onchain_registered_at"), "onchain_verified_at": r.get("onchain_verified_at"),
@@ -88,6 +89,13 @@ def submit(ctx: BusinessCtx, body, s: Settings) -> dict:
             raise conflict("invoice_not_financeable", "Invoice is already due; it cannot be financed")
         if repo.get_offer_by_invoice(c, inv["id"]):
             raise conflict("financing_exists", "A financing request already exists for this invoice")
+        conflicts = repo.duplicate_financing_conflicts(c, inv)
+        if conflicts:
+            with transaction() as ac:  # separate transaction: the audit row must survive the rollback caused by the raise below
+                audit(ac, ctx.user.id, "duplicate_financing_blocked", "invoice", inv["id"],
+                      {"reasons": sorted({x["reason"] for x in conflicts}), "conflicting_invoice_ids": [str(x["invoice_id"]) for x in conflicts]})
+            raise conflict("duplicate_financing", "This invoice (or its PDF) matches an invoice that is already in an active financing "
+                           "offer; the same receivable cannot be financed twice", reasons=sorted({x["reason"] for x in conflicts}))
         d = inv["token_decimals"]
         face = int(inv["amount_base"])
         adv = int(body.advance_base) if body.advance_base is not None else to_base(body.advance, d, "advance")
@@ -121,6 +129,7 @@ def list_offers(user: CurrentUser, status: str | None, pg: PageParams, s: Settin
         if mine is None:
             return [], 0
     elif user.role == "investor":
+        _require_verified(user)
         if status and status not in INVESTOR_VISIBLE:
             return [], 0
         statuses = [status] if status else ["LISTED"]
@@ -131,7 +140,14 @@ def list_offers(user: CurrentUser, status: str | None, pg: PageParams, s: Settin
     return [serialize_offer(r, s, user.role) for r in rows], total
 
 
+def _require_verified(user: CurrentUser) -> None:
+    if user.investor_verification != "verified":
+        raise forbidden("Your investor account has not been verified yet", "investor_not_verified")
+
+
 def get_offer(user: CurrentUser, offer_id, s: Settings) -> dict:
+    if user.role == "investor":
+        _require_verified(user)
     with transaction() as c:
         r = repo.get_offer(c, offer_id)
     if r is None:
@@ -172,7 +188,11 @@ def review(admin: CurrentUser, offer_id, body, s: Settings) -> dict:
             notice = body.assignment_notice.model_dump(mode="json") if body.assignment_notice else o.get("assignment_notice")
             if not ack or not notice:
                 raise bad_request("evidence_required", "Approval needs both debtor-acknowledgement and assignment-notice evidence")
-            upd.update({"debtor_ack": ack, "assignment_notice": notice, "debtor_ack_hash": hash_json(ack),
+            # If the debtor-acknowledgement FILE's SHA-256 was provided, that hash itself is anchored on-chain (auditable against the
+            # document); otherwise the hash of the evidence record is used, as before.
+            doc_sha = (ack or {}).get("document_sha256")
+            upd.update({"debtor_ack": ack, "assignment_notice": notice,
+                        "debtor_ack_hash": ("0x" + doc_sha.lower()) if doc_sha else hash_json(ack),
                         "debtor_ack_at": body.debtor_ack.acknowledged_at if body.debtor_ack else o.get("debtor_ack_at")})
             inv_repo.update(c, o["invoice_id"], {"review_status": "verified"})
         repo.update_offer(c, offer_id, upd)

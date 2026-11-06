@@ -128,6 +128,19 @@ contract InvoiceFinancingInvariantTest is Test {
         assertEq(settledFace, h.ghostRepaid());
     }
 
+    /// businessExposure always equals the sum of advances of Listed/Funded/Defaulted offers (no leak, no double release).
+    function invariant_exposureMatchesOpenOffers() public view {
+        uint256 open;
+        for (uint256 i = 0; i < h.count(); i++) {
+            InvoiceFinancing.Invoice memory inv = fin.getInvoice(h.ids(i));
+            if (
+                inv.status == InvoiceFinancing.Status.Listed || inv.status == InvoiceFinancing.Status.Funded
+                    || inv.status == InvoiceFinancing.Status.Defaulted
+            ) open += inv.advance;
+        }
+        assertEq(fin.businessExposure(business), open);
+    }
+
     /// Sanity: the handler's call sequence can actually reach Funded and Settled (so the invariants are not vacuous).
     function test_handlerCanReachSettlement() public {
         h.register(10_000e6);

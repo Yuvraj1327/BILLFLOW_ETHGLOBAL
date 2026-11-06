@@ -17,8 +17,9 @@ from app.repositories import profiles as prof
 from app.repositories import system as sysrepo
 from app.schemas.business import BusinessOut
 from app.schemas.common import ERRORS, Page, Strict
-from app.schemas.user import ProfileOut, RoleUpdate
+from app.schemas.user import AdminCreateIn, ProfileOut, RoleUpdate
 from app.services.event_processor import retry_unprocessed
+from app.services.supabase_client import get_auth
 
 router = APIRouter(prefix="/admin", tags=["Admin"], responses=ERRORS)
 Cfg = Annotated[Settings, Depends(get_settings)]
@@ -45,6 +46,22 @@ def users(admin: Admin, pg: Pagination, role: Literal["merchant", "customer", "i
     return _page(rows, total, pg)
 
 
+@router.post("/users", response_model=ProfileOut, status_code=201,
+             summary="Create an admin account (authorised admins only; there is no public admin signup)")
+def create_admin(body: AdminCreateIn, admin: Admin):
+    """Creates a confirmed Supabase user server-side (service-role key) and promotes the profile. The new admin logs in normally."""
+    with transaction() as c:
+        if prof.get_by_email(c, body.email):
+            raise conflict("email_in_use", "An account with this email already exists")
+    created = get_auth().admin_create_user(body.email, body.password, body.display_name)
+    with transaction() as c:
+        r = prof.set_role(c, created["id"], "admin")
+        if r is None:
+            raise not_found("User", "user_not_found")
+        sysrepo.audit(c, admin.id, "admin_created", "profile", r["id"], {"email": body.email})
+    return {**r, "business_id": None}
+
+
 @router.patch("/users/{user_id}/role", response_model=ProfileOut, summary="Change a user's role (the ONLY way to create an admin)")
 def set_role(user_id: UUID, body: RoleUpdate, admin: Admin):
     if user_id == admin.id:
@@ -64,7 +81,11 @@ def investor_verification(user_id: UUID, body: Decision, admin: Admin):
         p = prof.get(c, user_id)
         if p is None or p["role"] != "investor":
             raise not_found("Investor", "investor_not_found")
+        if c.execute("select 1 from investor_profiles where user_id=%s", (user_id,)).fetchone() is None:
+            raise conflict("investor_not_submitted", "This investor has not submitted onboarding yet")
         r = prof.set_investor_verification(c, user_id, status)
+        c.execute("update investor_profiles set review_notes=%s, reviewed_by=%s, reviewed_at=now() where user_id=%s",
+                  (body.notes, admin.id, user_id))
         sysrepo.audit(c, admin.id, f"investor_{status}", "profile", user_id, {"notes": body.notes})
         sysrepo.notify(c, user_id, f"investor_{status}", f"Investor profile {status}", body.notes)
     return r

@@ -19,8 +19,11 @@ from app.repositories import chain as chain_repo
 from app.repositories import financing as fin_repo
 from app.repositories import invoices as inv_repo
 from app.repositories import payments as pay_repo
+from app.repositories import refunds as refund_repo
 from app.repositories import profiles as prof_repo
 from app.repositories.system import audit, notify, notify_admins, notify_business
+from app.services._common import explorer_tx, money
+from app.services import webhook_service
 from app.services.blockchain_service import BlockchainService, DecodedEvent
 
 log = logging.getLogger("billflow.events")
@@ -59,7 +62,8 @@ def _invoice_paid(c: Connection, ev: DecodedEvent, s: Settings) -> Outcome:
         return _rej("invoice_total_mismatch")
     if amount <= 0 or paid > total or paid < amount:
         return _rej("amount_inconsistent")
-    p = pay_repo.insert_if_new(c, inv["id"], a["payer"], amount, ev.tx_hash, ev.log_index, ev.block_number)
+    p = pay_repo.insert_if_new(c, inv["id"], a["payer"], amount, ev.tx_hash, ev.log_index, ev.block_number,
+                               int(a["paymentId"]) if "paymentId" in a else None)
     if p is None:
         return Outcome("duplicate", "payment already recorded")
     new_paid = max(int(inv["paid_amount_base"]), paid)
@@ -74,7 +78,64 @@ def _invoice_paid(c: Connection, ev: DecodedEvent, s: Settings) -> Outcome:
     inv_repo.update(c, inv["id"], upd)
     notify_business(c, inv["business_id"], "invoice_payment_received", f"Payment received for invoice {inv['invoice_number']}",
                     f"{amount} base units paid; invoice is now {upd.get('status', inv['status'])}.")
+    data = webhook_service.payment_data(c, inv, p, s)
+    data["invoice_status"] = upd.get("status", inv["status"])
+    webhook_service.enqueue(c, inv["business_id"], "payment.confirmed", f"payment.confirmed:{p['id']}", data)
+    if new_status == "PAID" and inv["status"] != "CANCELLED":
+        webhook_service.enqueue(c, inv["business_id"], "invoice.paid", f"invoice.paid:{inv['id']}", data)
     return Outcome("applied", new_status, payment_id=str(p["id"]))
+
+
+# ───────────────────────── refunds ─────────────────────────
+def _payment_refunded(c: Connection, ev: DecodedEvent, s: Settings) -> Outcome:
+    a = ev.args
+    if not s.whitechain_refunds_contract or ev.contract != s.whitechain_refunds_contract:
+        return _rej("wrong_contract")
+    p = c.execute("""select p.*, i.business_id, i.token_decimals, i.invoice_number, i.currency, b.payout_wallet
+                     from payments p join invoices i on i.id=p.invoice_id join businesses b on b.id=i.business_id
+                     where p.onchain_payment_id=%s order by p.created_at desc limit 1 for update of p""", (int(a["paymentId"]),)).fetchone()
+    if p is None:
+        return _retry("payment event not processed yet")
+    amount, total_refunded, pay_amount = int(a["amount"]), int(a["totalRefundedForPayment"]), int(a["paymentAmount"])
+    if a["payer"] != p["payer_wallet"]:
+        return _rej("refund_payer_mismatch")
+    if not p["payout_wallet"] or a["merchant"] != p["payout_wallet"]:
+        return _rej("refund_merchant_mismatch")
+    if pay_amount != int(p["amount_base"]):
+        return _rej("refund_payment_amount_mismatch")
+    if amount <= 0 or amount > total_refunded or total_refunded > pay_amount:
+        return _rej("refund_amount_inconsistent")
+    if refund_repo.by_tx_log(c, ev.tx_hash, ev.log_index):
+        return Outcome("duplicate", "refund already recorded")
+    fields = {"onchain_refund_id": int(a["refundId"]), "tx_hash": ev.tx_hash, "log_index": ev.log_index, "block_number": ev.block_number}
+    pending = refund_repo.by_ref(c, a["refundRef"], lock=True)
+    if pending is not None:
+        if pending["payment_id"] != p["id"] or int(pending["amount_base"]) != amount or pending["reason_hash"] != a["reasonHash"]:
+            return _rej("refund_does_not_match_request")
+        if pending["status"] == "CONFIRMED":
+            return Outcome("duplicate", "refund already confirmed")
+        refund_repo.confirm(c, pending["id"], fields)
+        refund_id = pending["id"]
+    else:  # merchant refunded directly through the contract, outside BillFlow's UI: still record the verified fact
+        row = refund_repo.insert_confirmed(c, {"payment_id": p["id"], "invoice_id": p["invoice_id"], "business_id": p["business_id"],
+                                               "amount_base": amount, "refund_ref": a["refundRef"], "reason_hash": a["reasonHash"],
+                                               **fields})
+        if row is None:
+            return Outcome("duplicate", "refund already recorded")
+        refund_id = row["id"]
+    c.execute("update payments set refunded_amount_base=greatest(refunded_amount_base, %s) where id=%s", (total_refunded, p["id"]))
+    d = p["token_decimals"]
+    notify_business(c, p["business_id"], "refund_confirmed", f"Refund confirmed for invoice {p['invoice_number']}",
+                    f"{money(amount, d)} refunded to the original payer.")
+    data = {"refund_id": str(refund_id), "payment_id": str(p["id"]), "invoice_id": str(p["invoice_id"]), "amount": money(amount, d),
+            "amount_base": str(amount), "total_refunded_base": str(total_refunded), "fully_refunded": total_refunded == pay_amount,
+            "payer_wallet": p["payer_wallet"], "tx_hash": ev.tx_hash, "explorer_url": explorer_tx(s, ev.tx_hash), "currency": p["currency"],
+            "chain_id": s.whitechain_chain_id, "invoice_number": p["invoice_number"]}
+    sess = c.execute("select id, reference, metadata from checkout_sessions where invoice_id=%s", (p["invoice_id"],)).fetchone()
+    data.update({"session_id": str(sess["id"]) if sess else None, "reference": sess["reference"] if sess else None,
+                 "metadata": sess["metadata"] if sess else {}})
+    webhook_service.enqueue(c, p["business_id"], "refund.confirmed", f"refund.confirmed:{refund_id}", data)
+    return Outcome("applied", "refund recorded", payment_id=str(p["id"]))
 
 
 # ───────────────────────── financing ─────────────────────────
@@ -245,6 +306,7 @@ def _ts(c: Connection, unix: int):
 
 HANDLERS: dict[tuple[str, str], Callable[[Connection, DecodedEvent, Settings], Outcome]] = {
     ("payments", "InvoicePaid"): _invoice_paid,
+    ("refunds", "PaymentRefunded"): _payment_refunded,
     ("financing", "InvoiceRegistered"): _registered,
     ("financing", "InvoiceVerified"): _verified,
     ("financing", "OfferCreated"): _created,
@@ -289,7 +351,8 @@ def retry_unprocessed(settings: Settings, limit: int = 100) -> int:
     applied = 0
     for r in rows:
         ev = DecodedEvent(chain_id=r["chain_id"], contract=r["contract_address"],
-                          kind="payments" if r["contract_address"] == settings.whitechain_payment_contract else "financing",
+                          kind=("payments" if r["contract_address"] == settings.whitechain_payment_contract
+                                else "refunds" if r["contract_address"] == settings.whitechain_refunds_contract else "financing"),
                           name=r["event_name"], tx_hash=r["tx_hash"], log_index=r["log_index"], block_number=r["block_number"],
                           block_hash=r["block_hash"], args=r["payload"])
         if process_event(ev, settings).status == "applied":
@@ -318,7 +381,7 @@ def verify_transaction(chain: BlockchainService, tx_hash: str, kinds: tuple[str,
     tx_hash = tx_hash.lower()
     res = TxVerification(tx_hash=tx_hash, stage="submitted", required_confirmations=s.min_confirmations,
                          explorer_url=chain.explorer_tx_url(tx_hash))
-    kind = "invoice_payment" if kinds == ("payments",) else "financing"
+    kind = "invoice_payment" if kinds == ("payments",) else "refund" if kinds == ("refunds",) else "financing"
     chain.assert_network()
     receipt = chain.client.get_receipt(tx_hash)
     if receipt is None:
@@ -356,6 +419,14 @@ def verify_transaction(chain: BlockchainService, tx_hash: str, kinds: tuple[str,
         for e in events:
             if e.name == "InvoicePaid" and not any(
                     t.args["from"] == e.args["payer"] and t.args["to"] == e.args["merchant"] and t.args["value"] == e.args["amount"]
+                    for t in transfers):
+                res.stage, res.detail = "rejected", "No matching transfer from the configured USDT contract in this transaction"
+                return res
+    if "refunds" in kinds:  # cross-check the refund's real USDT movement merchant -> original payer
+        transfers = chain.usdt_transfers(receipt)
+        for e in events:
+            if e.name == "PaymentRefunded" and not any(
+                    t.args["from"] == e.args["merchant"] and t.args["to"] == e.args["payer"] and t.args["value"] == e.args["amount"]
                     for t in transfers):
                 res.stage, res.detail = "rejected", "No matching transfer from the configured USDT contract in this transaction"
                 return res

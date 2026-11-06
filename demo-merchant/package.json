@@ -1,0 +1,1 @@
+{ "name": "bean-counter-demo-merchant", "version": "0.1.0", "private": true, "scripts": { "start": "node server.js", "test": "node --test test/webhook.test.js" }, "engines": { "node": ">=18" } }

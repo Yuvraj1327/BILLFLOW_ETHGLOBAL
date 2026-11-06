@@ -3,14 +3,14 @@ from pathlib import Path
 
 from eth_account import Account
 
-from tests.helpers import FINANCING, PAYMENTS, SIGNER_KEY, USDT, erc20_transfer, h32, invoice_paid
+from tests.helpers import FINANCING, PAYMENTS, SIGNER_KEY, USDT, erc20_transfer, h32, invoice_paid, REFUNDS
 
 API = "/api/v1"
 ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_shipped_abis_match_step2_artifacts():
-    for n in ("BillFlowPayments", "InvoiceFinancing"):
+    for n in ("BillFlowPayments", "InvoiceFinancing", "BillFlowRefunds"):
         shipped = json.loads((ROOT / "backend/app/abi" / f"{n}.json").read_text())
         step2 = json.loads((ROOT / "docs/abi" / f"{n}.json").read_text())
         assert shipped == step2, f"{n}: backend ABI drifted from the Step 2 ABI"
@@ -20,7 +20,7 @@ def test_decoder_knows_every_contract_event():
     from app.core.config import get_settings
     from app.services.blockchain_service import EventDecoder, load_abi
     d = EventDecoder(get_settings())
-    for kind, name in (("payments", "BillFlowPayments"), ("financing", "InvoiceFinancing")):
+    for kind, name in (("payments", "BillFlowPayments"), ("financing", "InvoiceFinancing"), ("refunds", "BillFlowRefunds")):
         want = {e["name"] for e in load_abi(name) if e["type"] == "event"}
         assert want == {e["name"] for e in d.events[kind].values()}
 
@@ -90,6 +90,8 @@ def test_admin_endpoints(w, client, chain, conn):
     target = w.user("customer")
     assert client.patch(f"{API}/admin/users/{target['id']}/role", json={"role": "investor"}, headers=h).json()["role"] == "investor"
     assert client.patch(f"{API}/admin/users/{target['id']}/role", json={"role": "root"}, headers=h).status_code == 422
+    w.c.execute("insert into investor_profiles (user_id, full_name, country, investor_type, accepted_terms_at, accepted_risk_at) "
+                "values (%s,'T I','UK','individual',now(),now())", (target["id"],))
     assert client.patch(f"{API}/admin/users/{target['id']}/investor-verification", json={"decision": "verify"}, headers=h).json()["investor_verification"] == "verified"
     assert client.get(f"{API}/admin/users?role=investor", headers=h).json()["total"] == 1
     assert client.put(f"{API}/admin/settings/max_discount_bps", json={"value": 99999}, headers=h).status_code == 400
@@ -123,10 +125,19 @@ def test_config_has_no_secrets(w, client):
 
 def _healthy(chain):
     sg = Account.from_key(SIGNER_KEY).address
-    for a in (USDT, PAYMENTS, FINANCING):
+    for a in (USDT, PAYMENTS, FINANCING, REFUNDS):
         chain.code[a] = b"\x60\x80"
     chain.calls.update({(USDT, "decimals"): 6, (PAYMENTS, "PAYMENT_TOKEN"): USDT, (PAYMENTS, "quoteSigner"): sg,
-                        (FINANCING, "PAYMENT_TOKEN"): USDT, (FINANCING, "invoiceCount"): 0})
+                        (FINANCING, "PAYMENT_TOKEN"): USDT, (FINANCING, "invoiceCount"): 0,
+                        (REFUNDS, "PAYMENT_TOKEN"): USDT, (REFUNDS, "PAYMENTS"): PAYMENTS})
+
+
+def test_preflight_detects_refunds_contract_pointing_at_wrong_payments(w, client, chain):
+    adm = w.user("admin")
+    _healthy(chain)
+    chain.calls[(REFUNDS, "PAYMENTS")] = "0x" + "77" * 20
+    body = client.get(f"{API}/blockchain/health", headers=adm["h"]).json()
+    assert body["ok"] is False and body["checks"]["refunds_points_at_payments"]["ok"] is False
 
 
 def test_preflight_ok_and_each_mismatch_detected(w, client, chain):

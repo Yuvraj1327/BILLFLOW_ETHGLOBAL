@@ -56,7 +56,7 @@ class ChainReceipt:
 class DecodedEvent:
     chain_id: int
     contract: str  # lower-case address
-    kind: str  # payments | financing | erc20
+    kind: str  # payments | financing | refunds | erc20
     name: str
     tx_hash: str
     log_index: int
@@ -174,10 +174,13 @@ class EventDecoder:
             self.by_address[settings.whitechain_payment_contract] = "payments"
         if settings.whitechain_financing_contract:
             self.by_address[settings.whitechain_financing_contract] = "financing"
+        if settings.whitechain_refunds_contract:
+            self.by_address[settings.whitechain_refunds_contract] = "refunds"
         if settings.whitechain_usdt_address:
             self.by_address[settings.whitechain_usdt_address] = "erc20"
-        self.events: dict[str, dict[str, dict]] = {"payments": {}, "financing": {}, "erc20": {}}
-        for kind, abi_name in (("payments", "BillFlowPayments"), ("financing", "InvoiceFinancing"), ("erc20", "ERC20")):
+        self.events: dict[str, dict[str, dict]] = {"payments": {}, "financing": {}, "refunds": {}, "erc20": {}}
+        for kind, abi_name in (("payments", "BillFlowPayments"), ("financing", "InvoiceFinancing"),
+                               ("refunds", "BillFlowRefunds"), ("erc20", "ERC20")):
             for item in load_abi(abi_name):
                 if item["type"] == "event":
                     sig = f"{item['name']}({','.join(self._canon(i) for i in item['inputs'])})"
@@ -220,7 +223,8 @@ class BlockchainService:
 
     @property
     def contract_addresses(self) -> list[str]:
-        return [a for a in (self.s.whitechain_payment_contract, self.s.whitechain_financing_contract) if a]
+        return [a for a in (self.s.whitechain_payment_contract, self.s.whitechain_financing_contract,
+                            self.s.whitechain_refunds_contract) if a]
 
     def explorer_tx_url(self, tx_hash: str) -> str:
         return f"{self.s.whitechain_explorer_url.rstrip('/')}/tx/{tx_hash}"
@@ -233,7 +237,7 @@ class BlockchainService:
     def confirmations(self, receipt: ChainReceipt) -> int:
         return max(0, self.client.latest_block() - receipt.block_number + 1)
 
-    def decode_receipt(self, receipt: ChainReceipt, kinds: tuple[str, ...] = ("payments", "financing")) -> list[DecodedEvent]:
+    def decode_receipt(self, receipt: ChainReceipt, kinds: tuple[str, ...] = ("payments", "financing", "refunds")) -> list[DecodedEvent]:
         out = []
         for lg in receipt.logs:
             ev = self.decoder.decode(lg)
@@ -274,6 +278,13 @@ class BlockchainService:
                 rec("payments_token_matches", tok.lower() == s.whitechain_usdt_address, tok.lower())
                 qs = self.client.call(s.whitechain_payment_contract, load_abi("BillFlowPayments"), "quoteSigner")
                 rec("quote_signer_matches", signer_address is not None and qs.lower() == signer_address.lower(), qs.lower())
+            if s.whitechain_refunds_contract:
+                rc = s.whitechain_refunds_contract
+                rec("refunds_has_code", len(self.client.get_code(rc)) > 0, rc)
+                tok = self.client.call(rc, load_abi("BillFlowRefunds"), "PAYMENT_TOKEN")
+                rec("refunds_token_matches", tok.lower() == s.whitechain_usdt_address, tok.lower())
+                pc = self.client.call(rc, load_abi("BillFlowRefunds"), "PAYMENTS")
+                rec("refunds_points_at_payments", pc.lower() == s.whitechain_payment_contract, pc.lower())
             if s.whitechain_financing_contract:
                 tok = self.client.call(s.whitechain_financing_contract, load_abi("InvoiceFinancing"), "PAYMENT_TOKEN")
                 rec("financing_token_matches", tok.lower() == s.whitechain_usdt_address, tok.lower())

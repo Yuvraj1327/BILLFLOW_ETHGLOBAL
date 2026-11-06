@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from datetime import date
 
 from app.core.config import Settings, get_settings
 from app.core.database import close_pool, init_pool, transaction
@@ -20,7 +21,7 @@ from app.core.exceptions import AppError
 from app.core.logging import setup_logging
 from app.repositories import chain as chain_repo
 from app.repositories import invoices as inv_repo
-from app.repositories.system import audit, notify_business
+from app.repositories.system import audit, notify, notify_business
 from app.services.blockchain_service import BlockchainService, get_blockchain
 from app.services.event_processor import process_event, retry_unprocessed
 
@@ -63,7 +64,7 @@ class Indexer:
             stats["scanned_to"] = end
             start = end + 1
         retry_unprocessed(s)
-        run_maintenance()
+        run_maintenance(s)
         return stats
 
     def _check_reorgs(self, head: int) -> int:
@@ -99,13 +100,41 @@ class Indexer:
             stop.wait(min(self.s.indexer_poll_seconds * (2 ** min(failures, 5)), 120) if failures else self.s.indexer_poll_seconds)
 
 
-def run_maintenance() -> int:
-    """Mark overdue invoices (idempotent) and notify the business."""
+def run_maintenance(settings: Settings | None = None) -> int:
+    """Mark overdue invoices, send due-soon notices for funded financing, and deliver due webhooks (all idempotent)."""
     with transaction() as c:
         rows = inv_repo.overdue_candidates(c)
         for r in rows:
             notify_business(c, r["business_id"], "invoice_overdue", f"Invoice {r['invoice_number']} is overdue")
+    notify_financing_due()
+    if settings is not None:
+        try:
+            from app.services import webhook_service
+            webhook_service.deliver_due(settings)
+        except Exception:  # noqa: BLE001 — webhook trouble must never stop the indexer
+            log.exception("webhook delivery pass failed")
     return len(rows)
+
+
+def notify_financing_due(days_ahead: int = 3) -> int:
+    """Tell the business and the investor once when a FUNDED offer matures within `days_ahead` days, and once when it is overdue."""
+    sent = 0
+    with transaction() as c:
+        offers = c.execute("""select f.id, f.business_id, f.maturity_date, i.invoice_number, inv.investor_id
+                              from financing_offers f join invoices i on i.id=f.invoice_id
+                              left join investments inv on inv.offer_id=f.id
+                              where f.status in ('FUNDED','DEFAULTED') and f.maturity_date <= current_date + %s""", (days_ahead,)).fetchall()
+        for o in offers:
+            overdue = o["maturity_date"] < date.today()
+            kind = "financing_overdue" if overdue else "financing_due_soon"
+            tag = f"[offer {o['id']}]"
+            if c.execute("select 1 from notifications where type=%s and body like %s limit 1", (kind, f"%{tag}%")).fetchone():
+                continue
+            title = f"Invoice {o['invoice_number']} is overdue" if overdue else f"Invoice {o['invoice_number']} matures on {o['maturity_date']}"
+            notify_business(c, o["business_id"], kind, title, tag)
+            notify(c, o["investor_id"], kind, title, tag)
+            sent += 1
+    return sent
 
 
 def start_background(settings: Settings | None = None) -> threading.Event:

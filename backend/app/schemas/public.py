@@ -25,6 +25,10 @@ class PublicInvoiceOut(BaseModel):
     usdt_decimals: int
     payments_contract: str
     link_expires_at: datetime | None
+    explorer_url: str | None = None
+    reference: str | None = None
+    success_url: str | None = None
+    cancel_url: str | None = None
 
 
 class PaymentIntentIn(Strict):
@@ -52,3 +56,18 @@ class PublicStatusOut(BaseModel):
     remaining_amount: str
     payable: bool
     payments: list[dict[str, Any]]
+
+
+class PublicVerifyIn(Strict):
+    tx_hash: str = Field(pattern=r"^0x[0-9a-fA-F]{64}$")
+
+
+class PublicVerifyOut(BaseModel):
+    stage: str = Field(description="not_found | submitted | failed | confirmed | rejected | verified")
+    detail: str = ""
+    confirmations: int
+    required_confirmations: int
+    explorer_url: str
+    paid_for_this_invoice: bool
+    invoice_status: str
+    receipt: dict[str, Any] | None = None

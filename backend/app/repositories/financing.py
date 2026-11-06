@@ -95,3 +95,26 @@ def list_investments(c: Connection, *, investor_id=None, business_id=None, settl
     ws = " and ".join(w)
     total = c.execute(f"select count(*) n from investments v join financing_offers f on f.id=v.offer_id where {ws}", p).fetchone()["n"]
     return c.execute(f"{_INV} where {ws} order by v.created_at desc limit %s offset %s", p + [pg.page_size, pg.offset]).fetchall(), total
+
+
+INACTIVE = ("REJECTED", "CANCELLED", "EXPIRED")
+
+
+def duplicate_financing_conflicts(c, inv: dict) -> list[dict]:
+    """Other invoices that are ALREADY in an active financing offer and look like this one: same supporting PDF (SHA-256), or the same
+    invoice identity (number + amount + due date + debtor) at another business, or a same-business look-alike (customer + amount + issue
+    date). Used to hard-block double financing; admins still review everything else."""
+    return c.execute("""
+        select f.id as offer_id, f.invoice_id, 'same_document' as reason
+          from financing_offers f join invoice_documents d on d.invoice_id=f.invoice_id
+         where d.sha256 in (select sha256 from invoice_documents where invoice_id=%(id)s)
+           and f.invoice_id<>%(id)s and f.status not in ('REJECTED','CANCELLED','EXPIRED')
+        union
+        select f.id, f.invoice_id, 'same_invoice_data'
+          from financing_offers f join invoices i on i.id=f.invoice_id
+         where f.invoice_id<>%(id)s and f.status not in ('REJECTED','CANCELLED','EXPIRED')
+           and ((i.business_id<>%(biz)s and i.invoice_number=%(num)s and i.amount_base=%(amt)s and i.due_date=%(due)s
+                 and lower(f.debtor_name)=lower(%(debtor)s))
+             or (i.business_id=%(biz)s and i.customer_id=%(cust)s and i.amount_base=%(amt)s and i.issue_date=%(issue)s))
+        """, {"id": inv["id"], "biz": inv["business_id"], "num": inv["invoice_number"], "amt": inv["amount_base"], "due": inv["due_date"],
+              "debtor": inv.get("customer_name") or "", "cust": inv["customer_id"], "issue": inv["issue_date"]}).fetchall()

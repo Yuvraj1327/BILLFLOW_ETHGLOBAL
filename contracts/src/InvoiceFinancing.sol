@@ -100,6 +100,16 @@ contract InvoiceFinancing is ERC721, AccessControl, Pausable, ReentrancyGuard {
     uint256 public maxDiscountBps = 2000; // 20% max (face - advance) / face
     uint256 public gracePeriod = 7 days; // after dueDate before an unpaid funded invoice can be defaulted
 
+    // ── financing limits (0 = unlimited) ──
+    /// Maximum advance for any single invoice offer (token base units).
+    uint256 public maxAdvancePerInvoice;
+    /// Default cap on a business's OUTSTANDING advances (Listed + Funded + Defaulted, not yet settled/cancelled).
+    uint256 public defaultBusinessExposureCap;
+    /// Per-business override of the default cap (0 = use the default).
+    mapping(address business => uint256) public businessExposureCapOverride;
+    /// Sum of `advance` over the business's offers that are Listed, Funded or Defaulted.
+    mapping(address business => uint256) public businessExposure;
+
     bool private _internalMove; // true only while this contract itself mints/moves/burns the claim token
 
     // ───────────────────────────── events ─────────────────────────────
@@ -138,6 +148,9 @@ contract InvoiceFinancing is ERC721, AccessControl, Pausable, ReentrancyGuard {
     event InvestorAllowlistToggled(bool enabled);
     event MaxDiscountUpdated(uint256 maxDiscountBps);
     event GracePeriodUpdated(uint256 gracePeriod);
+    event MaxAdvancePerInvoiceUpdated(uint256 maxAdvance);
+    event DefaultExposureCapUpdated(uint256 cap);
+    event BusinessExposureCapUpdated(address indexed business, uint256 cap);
 
     // ───────────────────────────── errors ─────────────────────────────
     error ZeroAddress();
@@ -159,6 +172,8 @@ contract InvoiceFinancing is ERC721, AccessControl, Pausable, ReentrancyGuard {
     error UnexpectedTransferAmount();
     error InvalidConfig();
     error CannotRescuePaymentToken();
+    error AdvanceTooHigh(uint256 advance, uint256 maxAdvance);
+    error ExposureCapExceeded(uint256 newExposure, uint256 cap);
 
     constructor(IERC20 token, address admin) ERC721("BillFlow Invoice Claim", "BFINV") {
         if (address(token) == address(0) || admin == address(0)) revert ZeroAddress();
@@ -265,6 +280,15 @@ contract InvoiceFinancing is ERC721, AccessControl, Pausable, ReentrancyGuard {
             revert DiscountTooHigh(discountBps, maxDiscountBps);
         }
 
+        // Financing limits (0 = unlimited). Exposure is reserved from listing until settlement/cancel/expiry.
+        if (maxAdvancePerInvoice != 0 && advance > maxAdvancePerInvoice) {
+            revert AdvanceTooHigh(advance, maxAdvancePerInvoice);
+        }
+        uint256 cap = exposureCapOf(inv.business);
+        uint256 newExposure = businessExposure[inv.business] + advance;
+        if (cap != 0 && newExposure > cap) revert ExposureCapExceeded(newExposure, cap);
+        businessExposure[inv.business] = newExposure;
+
         inv.advance = advance;
         inv.fundingDeadline = fundingDeadline;
         inv.status = Status.Listed;
@@ -282,6 +306,7 @@ contract InvoiceFinancing is ERC721, AccessControl, Pausable, ReentrancyGuard {
         if (inv.status != Status.Listed) revert InvalidStatus(inv.status);
         _requireBusinessOrOperator(inv.business);
         inv.status = Status.Cancelled;
+        businessExposure[inv.business] -= inv.advance;
         _burnClaim(invoiceId);
         emit OfferCancelled(invoiceId, msg.sender);
     }
@@ -292,6 +317,7 @@ contract InvoiceFinancing is ERC721, AccessControl, Pausable, ReentrancyGuard {
         if (inv.status != Status.Listed) revert InvalidStatus(inv.status);
         if (block.timestamp <= inv.fundingDeadline) revert FundingStillOpen();
         inv.status = Status.Expired;
+        businessExposure[inv.business] -= inv.advance;
         _burnClaim(invoiceId);
         emit OfferExpired(invoiceId);
     }
@@ -339,6 +365,7 @@ contract InvoiceFinancing is ERC721, AccessControl, Pausable, ReentrancyGuard {
         // ── effects ──
         inv.status = Status.Settled;
         inv.settledAt = uint64(block.timestamp);
+        businessExposure[inv.business] -= inv.advance;
 
         // ── interaction ──
         uint256 balanceBefore = PAYMENT_TOKEN.balanceOf(investor);
@@ -349,9 +376,10 @@ contract InvoiceFinancing is ERC721, AccessControl, Pausable, ReentrancyGuard {
         emit OfferSettled(invoiceId, investor);
     }
 
-    /// @notice Flag a funded invoice as defaulted once maturity + grace has passed. Informational state
-    ///         for investors/UI; it does not move funds and does not prevent a later repayment.
-    function markDefaulted(uint256 invoiceId) external onlyRole(OPERATOR_ROLE) {
+    /// @notice Flag a funded invoice as defaulted once maturity + grace has passed. PERMISSIONLESS (any
+    ///         keeper or user may call it): it is informational state for investors/UI, it moves no funds,
+    ///         keeps the business exposure reserved, and does not prevent a later repayment.
+    function markDefaulted(uint256 invoiceId) external {
         Invoice storage inv = _get(invoiceId);
         if (inv.status != Status.Funded) revert InvalidStatus(inv.status);
         if (block.timestamp <= uint256(inv.dueDate) + gracePeriod) revert NotYetDefaultable();
@@ -375,6 +403,18 @@ contract InvoiceFinancing is ERC721, AccessControl, Pausable, ReentrancyGuard {
         return (inv.status == Status.Funded || inv.status == Status.Defaulted) && block.timestamp > inv.dueDate;
     }
 
+    /// @notice Effective exposure cap for a business (0 = unlimited).
+    function exposureCapOf(address business) public view returns (uint256) {
+        uint256 o = businessExposureCapOverride[business];
+        return o != 0 ? o : defaultBusinessExposureCap;
+    }
+
+    /// @notice Seconds until maturity (0 once due). Convenience for UIs / keepers.
+    function timeToMaturity(uint256 invoiceId) external view returns (uint256) {
+        Invoice storage inv = _get(invoiceId);
+        return block.timestamp >= inv.dueDate ? 0 : inv.dueDate - block.timestamp;
+    }
+
     function discountBpsOf(uint256 invoiceId) external view returns (uint256) {
         Invoice storage inv = _get(invoiceId);
         if (inv.advance == 0) return 0;
@@ -393,6 +433,23 @@ contract InvoiceFinancing is ERC721, AccessControl, Pausable, ReentrancyGuard {
         if (investor == address(0)) revert ZeroAddress();
         investorApproved[investor] = approved;
         emit InvestorApprovalUpdated(investor, approved);
+    }
+
+    /// @notice Per-business exposure cap override (0 = fall back to the default cap).
+    function setBusinessExposureCap(address business, uint256 cap) external onlyRole(VERIFIER_ROLE) {
+        if (business == address(0)) revert ZeroAddress();
+        businessExposureCapOverride[business] = cap;
+        emit BusinessExposureCapUpdated(business, cap);
+    }
+
+    function setDefaultBusinessExposureCap(uint256 cap) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        defaultBusinessExposureCap = cap;
+        emit DefaultExposureCapUpdated(cap);
+    }
+
+    function setMaxAdvancePerInvoice(uint256 maxAdvance) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        maxAdvancePerInvoice = maxAdvance;
+        emit MaxAdvancePerInvoiceUpdated(maxAdvance);
     }
 
     function setInvestorAllowlistEnabled(bool enabled) external onlyRole(DEFAULT_ADMIN_ROLE) {

@@ -539,11 +539,8 @@ contract InvoiceFinancingTest is Test {
         assertTrue(fin.isOverdue(id));
 
         vm.warp(T0 + 30 days + 7 days + 1);
+        // permissionless: any keeper / stranger may flag the default (informational, moves no funds)
         vm.prank(stranger);
-        vm.expectPartialRevert(IAccessControl.AccessControlUnauthorizedAccount.selector);
-        fin.markDefaulted(id);
-
-        vm.prank(operator);
         fin.markDefaulted(id);
         assertEq(uint8(_status(id)), uint8(InvoiceFinancing.Status.Defaulted));
 
@@ -741,5 +738,126 @@ contract InvoiceFinancingTest is Test {
         vm.prank(business);
         vm.expectPartialRevert(InvoiceFinancing.DiscountTooHigh.selector);
         fin.createOffer(id, advance, T0 + 7 days);
+    }
+    // ═════════ financing limits (exposure cap / max advance) ═════════
+    function _newInvoice(bytes32 h, uint256 face) internal returns (uint256 id) {
+        InvoiceFinancing.RegisterParams memory p = _params(h);
+        p.faceValue = face;
+        vm.prank(business);
+        id = fin.registerInvoice(p);
+        vm.prank(verifier);
+        fin.verifyInvoice(id, ACK);
+    }
+
+    function test_limits_defaultToUnlimited() public {
+        assertEq(fin.maxAdvancePerInvoice(), 0);
+        assertEq(fin.defaultBusinessExposureCap(), 0);
+        assertEq(fin.exposureCapOf(business), 0);
+        _listed();
+        assertEq(fin.businessExposure(business), ADVANCE);
+    }
+
+    function test_maxAdvancePerInvoice_enforced() public {
+        vm.prank(admin);
+        fin.setMaxAdvancePerInvoice(5_000e6);
+        uint256 id = _verified();
+        vm.prank(business);
+        vm.expectRevert(abi.encodeWithSelector(InvoiceFinancing.AdvanceTooHigh.selector, ADVANCE, 5_000e6));
+        fin.createOffer(id, ADVANCE, T0 + 7 days);
+        vm.prank(business);
+        // 5,000 of 10,000 face is a 50% discount > 20% max, so the discount rule still applies first-class
+        vm.expectRevert();
+        fin.createOffer(id, 5_000e6, T0 + 7 days);
+        // raise the limit exactly to the advance: allowed (boundary)
+        vm.prank(admin);
+        fin.setMaxAdvancePerInvoice(ADVANCE);
+        vm.prank(business);
+        fin.createOffer(id, ADVANCE, T0 + 7 days);
+    }
+
+    function test_exposureCap_enforcedAcrossInvoices_andReleasedOnCancelExpireSettle() public {
+        vm.prank(admin);
+        fin.setDefaultBusinessExposureCap(ADVANCE + 100e6); // room for one 9,500 advance only
+        uint256 a = _newInvoice(keccak256("a"), FACE);
+        uint256 b = _newInvoice(keccak256("b"), FACE);
+        vm.prank(business);
+        fin.createOffer(a, ADVANCE, T0 + 7 days);
+        assertEq(fin.businessExposure(business), ADVANCE);
+
+        vm.prank(business);
+        vm.expectRevert(
+            abi.encodeWithSelector(InvoiceFinancing.ExposureCapExceeded.selector, 2 * ADVANCE, ADVANCE + 100e6)
+        );
+        fin.createOffer(b, ADVANCE, T0 + 7 days);
+
+        // cancel releases
+        vm.prank(business);
+        fin.cancelOffer(a);
+        assertEq(fin.businessExposure(business), 0);
+        vm.prank(business);
+        fin.createOffer(b, ADVANCE, T0 + 7 days);
+
+        // expiry releases
+        vm.warp(T0 + 7 days + 1);
+        fin.expireOffer(b);
+        assertEq(fin.businessExposure(business), 0);
+
+        // funded stays reserved until settled
+        uint256 c = _newInvoice(keccak256("c"), FACE);
+        vm.prank(business);
+        fin.createOffer(c, ADVANCE, T0 + 20 days);
+        vm.prank(investor);
+        fin.fund(c);
+        assertEq(fin.businessExposure(business), ADVANCE);
+        vm.prank(debtor);
+        fin.repay(c);
+        assertEq(fin.businessExposure(business), 0);
+    }
+
+    function test_exposure_defaultedStaysReservedUntilRepaid() public {
+        vm.prank(admin);
+        fin.setDefaultBusinessExposureCap(ADVANCE);
+        uint256 id = _funded();
+        vm.warp(T0 + 30 days + 7 days + 1);
+        fin.markDefaulted(id);
+        assertEq(fin.businessExposure(business), ADVANCE);
+        vm.prank(debtor);
+        fin.repay(id);
+        assertEq(fin.businessExposure(business), 0);
+    }
+
+    function test_perBusinessOverride_beatsDefault_andZeroFallsBack() public {
+        vm.prank(admin);
+        fin.setDefaultBusinessExposureCap(1_000e6);
+        vm.prank(verifier);
+        fin.setBusinessExposureCap(business, ADVANCE);
+        assertEq(fin.exposureCapOf(business), ADVANCE);
+        _listed(); // fits the override
+        vm.prank(verifier);
+        fin.setBusinessExposureCap(business, 0);
+        assertEq(fin.exposureCapOf(business), 1_000e6);
+    }
+
+    function test_limitSetters_accessControl() public {
+        vm.startPrank(stranger);
+        vm.expectPartialRevert(IAccessControl.AccessControlUnauthorizedAccount.selector);
+        fin.setMaxAdvancePerInvoice(1);
+        vm.expectPartialRevert(IAccessControl.AccessControlUnauthorizedAccount.selector);
+        fin.setDefaultBusinessExposureCap(1);
+        vm.expectPartialRevert(IAccessControl.AccessControlUnauthorizedAccount.selector);
+        fin.setBusinessExposureCap(business, 1);
+        vm.stopPrank();
+        vm.prank(verifier);
+        vm.expectRevert(InvoiceFinancing.ZeroAddress.selector);
+        fin.setBusinessExposureCap(address(0), 1);
+    }
+
+    function test_timeToMaturity() public {
+        uint256 id = _funded();
+        assertEq(fin.timeToMaturity(id), 30 days);
+        vm.warp(T0 + 10 days);
+        assertEq(fin.timeToMaturity(id), 20 days);
+        vm.warp(T0 + 31 days);
+        assertEq(fin.timeToMaturity(id), 0);
     }
 }

@@ -1,12 +1,46 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+*.swp
+
+# Secrets / env (keep examples)
 .env
 .env.*
 !.env.example
+env.json
+
+# Logs
+*.log
+
+# Python (backend)
 __pycache__/
+*.py[cod]
 .venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node (sdk, demo-merchant)
 node_modules/
-out/
-cache/
-broadcast/
+npm-debug.log*
+dist/
+
+# Flutter / Dart (frontend)
 .dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
 build/
-*.pem
+
+# Foundry (contracts)
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+contracts/lib/

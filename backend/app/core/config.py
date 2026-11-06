@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     usdt_decimals: int | None = None  # verified against the token at preflight; never assumed
     whitechain_payment_contract: str = ""
     whitechain_financing_contract: str = ""
+    whitechain_refunds_contract: str = ""  # BillFlowRefunds (Step 6); refunds are disabled until set
     # Step 2 merged the registry into the financing contract. If set it must equal the financing address.
     whitechain_invoice_registry: str = ""
 
@@ -61,11 +62,22 @@ class Settings(BaseSettings):
     payment_link_ttl_days: int = 30
     public_rate_limit_per_minute: int = 60
 
+    # Merchant API / webhooks (Step 6)
+    webhook_timeout_seconds: float = 5.0
+    webhook_max_attempts: int = 6
+    webhook_allow_insecure_urls: bool = False  # dev only: allow http:// and private/loopback webhook targets
+    api_key_rate_limit_per_minute: int = 120
+
     @field_validator("whitechain_usdt_address", "whitechain_payment_contract", "whitechain_financing_contract",
-                     "whitechain_invoice_registry")
+                     "whitechain_invoice_registry", "whitechain_refunds_contract")
     @classmethod
     def _lower(cls, v: str) -> str:
         return v.strip().lower()
+
+    @field_validator("usdt_decimals", "indexer_start_block", mode="before")
+    @classmethod
+    def _blank_is_none(cls, v):
+        return None if isinstance(v, str) and not v.strip() else v
 
     @property
     def cors_list(self) -> list[str]:

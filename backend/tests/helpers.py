@@ -23,6 +23,7 @@ DEC = 6
 USDT = "0x" + "11" * 20
 PAYMENTS = "0x" + "22" * 20
 FINANCING = "0x" + "33" * 20
+REFUNDS = "0x" + "55" * 20
 OTHER_TOKEN = "0x" + "44" * 20
 SIGNER_KEY = "0x" + "ab" * 32
 
@@ -50,7 +51,7 @@ def h32(label: str) -> str:
 
 # ───────────────────────── ABI-correct log construction ─────────────────────────
 def _event_abi(kind: str, name: str) -> dict:
-    abi = {"payments": "BillFlowPayments", "financing": "InvoiceFinancing", "erc20": "ERC20"}[kind]
+    abi = {"payments": "BillFlowPayments", "financing": "InvoiceFinancing", "refunds": "BillFlowRefunds", "erc20": "ERC20"}[kind]
     return next(e for e in load_abi(abi) if e["type"] == "event" and e["name"] == name)
 
 
@@ -90,6 +91,13 @@ def invoice_paid(inv: dict, payer: str, merchant: str, amount: int, total_paid: 
     return make_log("payments", address, "InvoicePaid", {
         "invoiceId": inv["onchain_invoice_id"], "paymentId": payment_id, "payer": payer, "merchant": merchant, "amount": amount,
         "totalPaid": total_paid, "invoiceTotal": int(inv["amount_base"]), "invoiceHash": inv["invoice_hash"]}, **kw)
+
+
+def payment_refunded(*, refund_id: int, payment_id: int, payer: str, merchant: str, amount: int, total_refunded: int, payment_amount: int,
+                     refund_ref: str, reason_hash: str, address: str = REFUNDS, **kw) -> ChainLog:
+    return make_log("refunds", address, "PaymentRefunded", {
+        "refundId": refund_id, "paymentId": payment_id, "payer": payer, "merchant": merchant, "amount": amount,
+        "totalRefundedForPayment": total_refunded, "paymentAmount": payment_amount, "refundRef": refund_ref, "reasonHash": reason_hash}, **kw)
 
 
 @dataclass
@@ -149,6 +157,13 @@ class FakeAuth:
         return {"access_token": "at", "refresh_token": "rt", "expires_in": 3600, "user": {"id": "00000000-0000-0000-0000-000000000001", "email": email}}
     def refresh(self, rt): return {"access_token": "at2", "refresh_token": "rt2", "expires_in": 3600, "user": {"id": "00000000-0000-0000-0000-000000000001", "email": "x@x.io"}}
     def logout(self, at): self.logged_out.append(at)
+    def admin_create_user(self, email, password, display_name):
+        import psycopg, uuid
+        from tests.conftest import TEST_DSN
+        uid = uuid.uuid4()
+        with psycopg.connect(TEST_DSN, autocommit=True) as c:
+            c.execute("insert into auth.users (id, email, raw_user_meta_data) values (%s,%s,'{}')", (uid, email))
+        return {"id": str(uid), "email": email}
 
 
 class FakeStorage:

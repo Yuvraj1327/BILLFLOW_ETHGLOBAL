@@ -20,7 +20,7 @@ os.environ.update({
     "DATABASE_URL": TEST_DSN, "SUPABASE_JWT_SECRET": "test-jwt-secret-test-jwt-secret-1234567890",
     "SUPABASE_URL": "https://example.supabase.test", "SUPABASE_ANON_KEY": "anon-test", "SUPABASE_SERVICE_ROLE_KEY": "service-test",
     "WHITECHAIN_CHAIN_ID": "1874", "WHITECHAIN_USDT_ADDRESS": "0x" + "11" * 20, "USDT_DECIMALS": "6",
-    "WHITECHAIN_PAYMENT_CONTRACT": "0x" + "22" * 20, "WHITECHAIN_FINANCING_CONTRACT": "0x" + "33" * 20,
+    "WHITECHAIN_PAYMENT_CONTRACT": "0x" + "22" * 20, "WHITECHAIN_REFUNDS_CONTRACT": "0x" + "55" * 20, "WHITECHAIN_FINANCING_CONTRACT": "0x" + "33" * 20,
     "QUOTE_SIGNER_PRIVATE_KEY": "0x" + "ab" * 32, "MIN_CONFIRMATIONS": "3", "ANTHROPIC_API_KEY": "test", "ANTHROPIC_MODEL": "test-model",
     "PUBLIC_CHECKOUT_BASE_URL": "https://pay.test", "APP_ENV": "test", "INDEXER_ENABLED": "false",
 })
@@ -132,13 +132,15 @@ class World:
     def __init__(self, conn, client):
         self.c, self.client = conn, client
 
-    def user(self, role: str, email: str | None = None) -> dict:
+    def user(self, role: str, email: str | None = None, verified: bool = True) -> dict:
         uid = uuid.uuid4()
         email = email or f"{role}-{uid.hex[:6]}@test.io"
         self.c.execute("insert into auth.users (id, email, raw_user_meta_data) values (%s,%s,%s)",
                        (uid, email, psycopg.types.json.Jsonb({"role": role if role in ("merchant", "investor") else "customer"})))
         if role == "admin":
             self.c.execute("update profiles set role='admin' where id=%s", (uid,))
+        if role == "investor" and verified:
+            self.c.execute("update profiles set investor_verification='verified' where id=%s", (uid,))
         from tests.helpers import token
         return {"id": uid, "email": email, "h": {"Authorization": f"Bearer {token(uid)}"}}
 

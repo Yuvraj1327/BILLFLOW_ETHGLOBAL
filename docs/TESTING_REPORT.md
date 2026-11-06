@@ -39,3 +39,21 @@ This is **not** evidence about Whitechain: different node, mock token, throw-awa
 cd contracts && export FOUNDRY_SOLC=/path/to/solc-0.8.28 && forge test
 cd backend && pytest -rs     # starts Postgres per tests/conftest.py; the local-chain tests need `anvil` and contracts/out
 ```
+
+
+## Step 6 additions (local only — nothing here ran against Whitechain)
+| Suite | Result |
+|---|---|
+| Foundry (all) | **92 pass** (+22: `BillFlowRefunds` 14 incl. 512-run fuzz and reentrancy; `InvoiceFinancing` +7 limits/permissionless default/countdown; +1 invariant `exposure == sum of open advances`) |
+| pytest (all) | **185 pass** (+60: `test_step6_backend.py` 55, `test_step6_local_chain.py` 2, `test_js_widget.py` 2, refunds preflight 1) |
+| Node: widget core + UI stub | 22 pass (`backend/tests/js/`) — calldata vs independent ABI vector, quote tampering, wallet-success-is-not-success, timeouts, XSS-as-text |
+| Node: SDK + demo merchant | 3 pass (`demo-merchant/test/`) — signature verify, forged/stale rejected, duplicate/out-of-order webhooks |
+| Local-chain E2E (Anvil, id 1874, real contracts) | demo store → API key → session → **real `billflow.js` pay()** → backend verification → signed webhooks → partial + full refund through `BillFlowRefunds` → chain-check → CSV → preflight. Ran 3× consecutively, stable. |
+
+Bugs found by these tests and fixed during Step 6: negative `uint` accepted by the widget's ABI encoder (would have produced garbage calldata);
+CSV guard corrupted negative refund amounts; duplicate-financing audit row rolled back with the rejected request; demo webhook handler was
+order-dependent (summed deliveries instead of using the cumulative total); `payments.onchain_payment_id` unique index would have broken
+reorg re-indexing (now a plain index).
+
+**Not covered:** real browser + real wallet for the widget UI; Flutter (unchanged, still never compiled; no Flutter refund UI was added);
+live Whitechain behaviour of any of this; the official USDT (all tests use a local mock token); AI extraction confirmation audit record (not built).

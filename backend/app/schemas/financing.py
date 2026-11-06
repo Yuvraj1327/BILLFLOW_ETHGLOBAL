@@ -27,6 +27,9 @@ class DebtorAck(Strict):
     evidence_ref: str = Field(min_length=3, max_length=500, description="Reference to the debtor-acknowledgement evidence")
     acknowledged_at: datetime
     acknowledged_by: str | None = Field(default=None, max_length=200)
+    document_sha256: str | None = Field(default=None, pattern=r"^[0-9a-fA-F]{64}$",
+                                        description="SHA-256 of the debtor-acknowledgement document (file stays off-chain). "
+                                                    "When given, this exact hash is anchored on-chain as debtorAckRef.")
     notes: str | None = Field(default=None, max_length=1000)
 
 
@@ -59,6 +62,7 @@ class OfferOut(BaseModel):
     discount_bps: int
     token_decimals: int
     maturity_date: date
+    days_to_maturity: int | None = Field(default=None, description="Maturity countdown; negative once overdue")
     funding_deadline: datetime
     onchain_offer_id: str | None
     onchain_registered_at: datetime | None = None

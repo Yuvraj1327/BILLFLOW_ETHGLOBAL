@@ -28,3 +28,15 @@ Requirements below come from the official prize page (ethglobal.com/events/mumba
 - [ ] Flutter compiles (`flutter analyze` clean), APK/web build produced
 - [ ] Backend deployed, `/blockchain/health` all ok, indexer worker running
 - [ ] Video uploaded; submission form: select Whitechain (and others ≤3 total)
+
+## Step 6 (Operate / Tokenize strengthening)
+- [ ] Contracts redeployed from the Step 6 sources (Payments, **Refunds**, Financing) and all three verified on the explorer
+- [ ] Migration 0004 applied; `WHITECHAIN_REFUNDS_CONTRACT` set; `/blockchain/health` all ok
+- [ ] Demo store (`demo-merchant/`) running against the deployed backend with a real API key + webhook secret
+- [ ] Real USDT payment made through `billflow.js` on chain 1874 (explorer link in README)
+- [ ] Signed webhook received by the demo store (screenshot of the merchant view)
+- [ ] Partial + full refund executed on-chain and verified (explorer links in README)
+- [ ] CSV export screenshot
+- [ ] Video shows **three parties**: customer (widget), merchant (dashboard/store/refund), investor (financing)
+- [ ] 20-line integration snippet visible in README (done) and in the video
+- [ ] `WHITECHAIN_FEEDBACK.md` finished (include: USDT permit/3009 support unknown; docs gaps you hit)

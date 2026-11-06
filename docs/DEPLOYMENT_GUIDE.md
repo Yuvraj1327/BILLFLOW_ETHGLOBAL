@@ -38,3 +38,19 @@ Fix compile errors first: the code has never been compiled. For the Android rele
 3. Customer opens link in a desktop browser with a wallet → connect → switch to 1874 → approve → pay. Copy the tx hash; confirm backend shows `Verified` and the invoice `PAID`. **Paste the explorer link in README/deployments.md.**
 4. Second invoice → financing request → admin approves with evidence → admin wallet (roles) sends register/verify/createOffer from the admin screen → investor links wallet (Profile), funds → advance reaches merchant → debtor/test wallet repays → status `SETTLED`. Record each tx hash.
 5. Run `GET /blockchain/health`; keep screenshots.
+
+## 6. Step 6 additions (BillFlowRefunds, limits, checkout API) — manual steps
+1. **Redeploy** with the updated `Deploy.s.sol` (it now also deploys `BillFlowRefunds` and applies optional limits). `InvoiceFinancing`
+   changed (exposure cap, max advance, permissionless `markDefaulted`), so the financing contract must be redeployed too — do NOT reuse an
+   address from before Step 6. Optional env: `MAX_ADVANCE_PER_INVOICE`, `DEFAULT_BUSINESS_EXPOSURE_CAP` (token base units; 0/unset = unlimited).
+2. Verify **all three** contracts on the explorer. Record addresses in `docs/deployments.md`.
+3. Backend env: add `WHITECHAIN_REFUNDS_CONTRACT=<BillFlowRefunds>`; run migration `supabase/migrations/0004_checkout_refunds_webhooks.sql`
+   in the Supabase SQL editor (additive). Set `INDEXER_START_BLOCK` to the new deployment block. Redeploy backend + indexer
+   (the indexer worker also delivers webhooks and sends due-date notifications).
+4. `GET /api/v1/blockchain/health` must show `refunds_has_code`, `refunds_token_matches`, `refunds_points_at_payments` all `ok`.
+5. Merchant: create an API key and a webhook endpoint (`docs/CHECKOUT_INTEGRATION.md`); run `demo-merchant/` with
+   `BILLFLOW_URL`, `BILLFLOW_API_KEY`, `BILLFLOW_WEBHOOK_SECRET`. For a webhook receiver on localhost during the demo use a public
+   HTTPS tunnel (webhook URLs must be https and non-private in production), or run the backend with `APP_ENV=development WEBHOOK_ALLOW_INSECURE_URLS=true`.
+6. Live evidence for Operate: pay the demo store's checkout with the widget (real USDT tx link) → webhook arrives → refund part of it
+   (merchant wallet `approve` + `refund`) → `/merchant/refunds/verify` → CSV export. Paste the tx links into README/deployments.md.
+7. Optional (Priority 7): run `forge script script/ProbeUsdtSignatures.s.sol` and read `docs/GASLESS_USDT.md`.

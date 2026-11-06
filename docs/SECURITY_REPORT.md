@@ -30,3 +30,25 @@ Role read from DB per request (not from JWT); `none`/unknown algs and wrong audi
 
 ## Residual risks
 Live deployment unverified · Flutter never compiled · live Claude path untested · hot signer key · centralized admin · credit risk · testnet token has no value.
+
+
+## Step 6 additions (self-review, not an audit)
+* **BillFlowRefunds** — authorisation by the *recorded* merchant (`msg.sender == payment.merchant`), recipient fixed to the recorded payer,
+  `refunded <= paid` per payment (fuzzed), single-use `refundRef`, `nonReentrant`, pausable, fee-on-transfer rejected, holds no funds.
+  Slither: `arbitrary-send-erc20` on `safeTransferFrom(p.merchant, p.payer, …)` — **reviewed, false positive** (the `from` is the caller, enforced
+  two lines earlier); naming-convention only otherwise. Residual: the merchant payout wallet is the signer, so a compromised merchant key can refund
+  (to the payers only, never to an attacker) up to what was paid and what it holds/approved; keep refund allowances exact.
+* **InvoiceFinancing changes** — exposure cap/max advance are admin/verifier-set (0 = unlimited); exposure accounting is invariant-tested.
+  `markDefaulted` is now permissionless: it only flips an informational status after maturity + grace, moves no funds, keeps exposure reserved and
+  does not block repayment. Slither: `timestamp` (intended).
+* **Merchant API keys** — high-entropy, SHA-256 at rest, shown once, revocable, per-key rate limit, testnet prefix, business-scoped; sessions
+  re-use the existing invoice service so payment safety rules are inherited. Idempotency-Key supported.
+* **Webhooks** — HMAC-SHA256 over `t.body`, timestamp tolerance, at-least-once with dedupe id, https-only and private-address block (re-checked at
+  send time, redirects off). Residual: DNS rebinding between check and connect is not fully closed (no pinned-IP transport); acceptable for a
+  testnet demo, fix before production. Webhook secrets are stored in plaintext in a backend-only table (RLS on, no policies) because HMAC needs them.
+* **Public endpoints** — CORS `*` on `/api/v1/public/*` only, no credentials; token-scoped, rate limited. New `verify-tx` is a read/verify path
+  that can apply other invoices' verified payments too (same as the authenticated verifier; idempotent, chain-verified).
+* **Widget** — no innerHTML, no storage, no secrets; refuses a quote whose chain/contract/token/payer differs from the checkout view; `onSuccess`
+  only after backend verification. Hosted page sends a strict CSP and `frame-ancestors 'none'`.
+* **Duplicate financing** — hard block on same PDF hash or same invoice identity across businesses; this reduces, but cannot eliminate, double
+  financing (a re-typed invoice with a different PDF and amounts is only caught by human review).

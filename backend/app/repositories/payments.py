@@ -7,11 +7,12 @@ from app.core.dependencies import PageParams
 _J = """select p.*, i.invoice_number, i.business_id, i.token_decimals from payments p join invoices i on i.id=p.invoice_id"""
 
 
-def insert_if_new(c: Connection, invoice_id, payer, amount, tx_hash, log_index, block_number) -> dict | None:
+def insert_if_new(c: Connection, invoice_id, payer, amount, tx_hash, log_index, block_number, onchain_payment_id=None) -> dict | None:
     """None means (tx_hash, log_index) was already recorded -> duplicate, nothing to do."""
-    return c.execute("""insert into payments (invoice_id, payer_wallet, amount_base, tx_hash, log_index, block_number, status, confirmed_at)
-                        values (%s,%s,%s,%s,%s,%s,'CONFIRMED', now()) on conflict (tx_hash, log_index) do nothing returning *""",
-                     (invoice_id, payer, amount, tx_hash, log_index, block_number)).fetchone()
+    return c.execute("""insert into payments (invoice_id, payer_wallet, amount_base, tx_hash, log_index, block_number, status, confirmed_at,
+                                              onchain_payment_id)
+                        values (%s,%s,%s,%s,%s,%s,'CONFIRMED', now(), %s) on conflict (tx_hash, log_index) do nothing returning *""",
+                     (invoice_id, payer, amount, tx_hash, log_index, block_number, onchain_payment_id)).fetchone()
 
 
 def get(c: Connection, payment_id) -> dict | None:

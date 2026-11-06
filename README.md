@@ -20,8 +20,9 @@ works with just a wallet; investors need verifiable, on-chain evidence of what t
 ## Features and honest status
 | Feature | Status | Evidence |
 |---|---|---|
-| Smart contracts (payments, financing) | **Unit/fuzz/invariant tested locally**; Slither run | 70 Foundry tests |
-| FastAPI backend (auth, RBAC, invoices, AI, payments, financing, admin, indexer) | **Integration tested** against real Postgres, mocked Supabase/Claude | 125 pytest tests |
+| Smart contracts (payments, financing, **refunds**) | **Unit/fuzz/invariant tested locally**; Slither run | 92 Foundry tests |
+| FastAPI backend (auth, RBAC, invoices, AI, payments, financing, admin, indexer, **checkout API, refunds, webhooks, CSV**) | **Integration tested** against real Postgres, mocked Supabase/Claude | 185 pytest tests |
+| **Embeddable checkout widget** (`billflow.js`), hosted `/pay/<token>`, Node SDK, **independent demo merchant** | Core flow tested against a **local Anvil chain** through the real backend; widget UI tested with a DOM stub only — **not yet in a real browser with a real wallet** | `backend/tests/js/`, `backend/tests/test_step6_local_chain.py`, `demo-merchant/` |
 | Contracts ⇄ backend verification | **Integration tested on a local Anvil chain (id 1874)** with the compiled contracts, real web3 client, real event decoding — *not Whitechain* | `backend/tests/test_local_chain_e2e.py` |
 | Claude invoice extraction/summary/reminder/validation | Tested with a **fake LLM**; never run against the live Anthropic API | `backend/tests/test_ai.py` |
 | Flutter app (web + mobile UI) | **Written, never compiled or run** | `app/` |
@@ -30,6 +31,21 @@ works with just a wallet; investors need verifiable, on-chain evidence of what t
 | Contract verification on the explorer | ⏳ Not done | |
 | Backend hosting | ⏳ Config prepared (`backend/Dockerfile`, `render.yaml`), **not deployed, image never built** | |
 | Android APK/AAB | ⏳ **Not built** (no Flutter SDK available) | |
+
+## Operate track — BillFlow Checkout (drop-in USDT payments)
+Any merchant app integrates in ~20 lines: create a session server-side with an API key, open the widget (or redirect to the hosted
+page), receive a **signed webhook**, and refund (full/partial, on-chain) when needed. The customer pays **official testnet USDT on
+Whitechain Sepolia straight to the merchant**; a payment counts only after the backend verifies it on-chain. See
+[`docs/CHECKOUT_INTEGRATION.md`](docs/CHECKOUT_INTEGRATION.md), the working independent store in [`demo-merchant/`](demo-merchant/),
+and the server SDK in [`sdk/billflow-node/`](sdk/billflow-node/). Extras: partial payments, `BillFlowRefunds` (merchant-signed,
+refund-to-original-payer, capped, replay-protected), HMAC-signed webhooks with retries, accountant CSV export.
+*Why on-chain:* the refund ledger, the payer/merchant binding and the payment record are public and tamper-evident, and settlement is
+final USDT movement rather than a processor's promise.
+
+## Tokenize track — hardening added in Step 6
+Hard duplicate-financing block (same PDF hash or same invoice identity, across businesses), debtor-acknowledgement **document hash**
+anchored on-chain verbatim, per-business **exposure cap** and per-invoice **maximum advance** enforced in the contract, permissionless
+default marking after maturity + grace, maturity countdown (`days_to_maturity`) and due-soon/overdue notifications.
 
 ## Stack
 Flutter · FastAPI · Supabase (Auth, Postgres, Storage) · Anthropic Claude (via backend only) · Solidity 0.8.28 + Foundry + OpenZeppelin 5.1 · Whitechain Sepolia (OP Stack, chain 1874) · USDT.

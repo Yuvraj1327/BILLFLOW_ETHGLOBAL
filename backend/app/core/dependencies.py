@@ -25,6 +25,7 @@ class CurrentUser:
     role: str
     wallet_address: str | None
     display_name: str | None = None
+    investor_verification: str | None = None
 
 
 def current_user(creds: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
@@ -33,12 +34,12 @@ def current_user(creds: Annotated[HTTPAuthorizationCredentials | None, Depends(_
         raise unauthorized()
     claims = verify_jwt(creds.credentials, settings)
     with transaction() as c:
-        row = c.execute("select id, email, role, wallet_address, display_name from profiles where id = %s",
+        row = c.execute("select id, email, role, wallet_address, display_name, investor_verification from profiles where id = %s",
                         (claims["sub"],)).fetchone()
     if row is None:
         raise forbidden("No profile exists for this account", "no_profile")
     return CurrentUser(id=row["id"], email=row["email"], role=row["role"], wallet_address=row["wallet_address"],
-                       display_name=row["display_name"])
+                       display_name=row["display_name"], investor_verification=row["investor_verification"])
 
 
 def require_roles(*roles: str) -> Callable[..., CurrentUser]:
@@ -52,6 +53,13 @@ def require_roles(*roles: str) -> Callable[..., CurrentUser]:
 Merchant = Annotated[CurrentUser, Depends(require_roles("merchant"))]
 Admin = Annotated[CurrentUser, Depends(require_roles("admin"))]
 Investor = Annotated[CurrentUser, Depends(require_roles("investor"))]
+def verified_investor(user: Investor) -> CurrentUser:
+    if user.investor_verification != "verified":
+        raise forbidden("Your investor account has not been verified yet", "investor_not_verified")
+    return user
+
+
+VerifiedInvestor = Annotated[CurrentUser, Depends(verified_investor)]
 AnyUser = Annotated[CurrentUser, Depends(current_user)]
 
 

@@ -5,6 +5,7 @@ import {Script, console2} from "forge-std/Script.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {BillFlowPayments} from "../src/BillFlowPayments.sol";
 import {InvoiceFinancing} from "../src/InvoiceFinancing.sol";
+import {BillFlowRefunds, IBillFlowPaymentsView} from "../src/BillFlowRefunds.sol";
 
 interface IDecimals {
     function decimals() external view returns (uint8);
@@ -40,6 +41,14 @@ contract Deploy is Script {
         vm.startBroadcast();
         BillFlowPayments payments = new BillFlowPayments(IERC20(usdt), msg.sender, quoteSigner, pauser);
         InvoiceFinancing financing = new InvoiceFinancing(IERC20(usdt), msg.sender);
+        BillFlowRefunds refunds = new BillFlowRefunds(IBillFlowPaymentsView(address(payments)), msg.sender, pauser);
+
+        // Optional financing limits (token base units; unset / 0 = unlimited). Read AFTER you know the
+        // token's decimals, e.g. MAX_ADVANCE_PER_INVOICE=5000000 for 5 USDT at 6 decimals.
+        uint256 maxAdvance = vm.envOr("MAX_ADVANCE_PER_INVOICE", uint256(0));
+        uint256 exposureCap = vm.envOr("DEFAULT_BUSINESS_EXPOSURE_CAP", uint256(0));
+        if (maxAdvance != 0) financing.setMaxAdvancePerInvoice(maxAdvance);
+        if (exposureCap != 0) financing.setDefaultBusinessExposureCap(exposureCap);
 
         financing.grantRole(financing.ISSUER_ROLE(), issuer);
         financing.grantRole(financing.VERIFIER_ROLE(), verifier);
@@ -49,13 +58,16 @@ contract Deploy is Script {
         if (admin != msg.sender) {
             payments.grantRole(payments.DEFAULT_ADMIN_ROLE(), admin);
             financing.grantRole(financing.DEFAULT_ADMIN_ROLE(), admin);
+            refunds.grantRole(refunds.DEFAULT_ADMIN_ROLE(), admin);
             payments.renounceRole(payments.DEFAULT_ADMIN_ROLE(), msg.sender);
+            refunds.renounceRole(refunds.DEFAULT_ADMIN_ROLE(), msg.sender);
             financing.renounceRole(financing.DEFAULT_ADMIN_ROLE(), msg.sender);
         }
         vm.stopBroadcast();
 
         console2.log("BillFlowPayments :", address(payments));
         console2.log("InvoiceFinancing :", address(financing));
+        console2.log("BillFlowRefunds  :", address(refunds));
         console2.log("Record these in docs/deployments.md and backend/.env, then verify on the explorer.");
     }
 }

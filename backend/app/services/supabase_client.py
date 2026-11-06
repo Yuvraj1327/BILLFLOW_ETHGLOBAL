@@ -20,6 +20,7 @@ class AuthClient(Protocol):
     def login(self, email: str, password: str) -> dict[str, Any]: ...
     def refresh(self, refresh_token: str) -> dict[str, Any]: ...
     def logout(self, access_token: str) -> None: ...
+    def admin_create_user(self, email: str, password: str, display_name: str | None) -> dict[str, Any]: ...
 
 
 class StorageClient(Protocol):
@@ -78,6 +79,22 @@ class GoTrue:
         r = self._post("/logout", {}, token=access_token)
         if r.status_code >= 500:
             raise upstream("supabase_unavailable", "Auth provider error")
+
+
+    def admin_create_user(self, email, password, display_name):
+        """Service-role call: creates an e-mail-confirmed user. Never reachable from the public signup path."""
+        key = get_settings().supabase_service_role_key
+        if not key:
+            raise AppError(503, "supabase_not_configured", "SUPABASE_SERVICE_ROLE_KEY is not configured")
+        try:
+            r = httpx.post(self.base + "/admin/users", headers={"apikey": key, "Authorization": f"Bearer {key}"}, timeout=15,
+                           json={"email": email, "password": password, "email_confirm": True,
+                                 "user_metadata": {"display_name": display_name}})
+        except httpx.HTTPError as e:
+            raise upstream("supabase_unavailable", f"Auth provider unreachable: {type(e).__name__}") from e
+        if r.status_code >= 400:
+            raise self._fail(r, "signup_failed")
+        return r.json()
 
 
 class SupabaseStorage:

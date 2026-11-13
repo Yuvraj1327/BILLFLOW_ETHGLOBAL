@@ -1,8 +1,8 @@
-# BillFlow Checkout — merchant integration guide (testnet)
+# NEXA BILLFLOW Checkout — merchant integration guide (testnet)
 
-BillFlow Checkout lets any website or server accept **USDT on Whitechain Sepolia** with a hosted page or an embeddable widget,
+NEXA BILLFLOW Checkout lets any website or server accept **USDT on Whitechain Sepolia** with a hosted page or an embeddable widget,
 signed webhooks, refunds and accountant exports. Funds go **directly from the customer wallet to the merchant payout wallet**
-(`BillFlowPayments`); BillFlow never custodies money.
+(`BillFlowPayments`); NEXA BILLFLOW never custodies money.
 
 ## The ~20-line integration
 
@@ -34,13 +34,13 @@ app.post('/webhooks/billflow', express.raw({ type: '*/*' }), (req, res) => {
   }
 </script>
 ```
-Or skip the widget: redirect the customer to `checkout_url` (the **hosted page** `/pay/<token>`); BillFlow sends them to your
+Or skip the widget: redirect the customer to `checkout_url` (the **hosted page** `/pay/<token>`); NEXA BILLFLOW sends them to your
 `success_url` with `?billflow_status=paid&billflow_tx=…` after verification.
 
 A complete, independent example is in `demo-merchant/` (zero npm dependencies).
 
 ## What `onSuccess` means
-The widget calls `onSuccess(receipt)` **only after the BillFlow backend has verified the transaction on-chain**: receipt status,
+The widget calls `onSuccess(receipt)` **only after the NEXA BILLFLOW backend has verified the transaction on-chain**: receipt status,
 required confirmations, canonical block, event from the configured `BillFlowPayments`, a matching transfer from the configured USDT,
 and that it paid *this* invoice. A wallet saying "success" is never trusted. Treat the **webhook** (or `GET /checkout/sessions/{id}`)
 as the source of truth for fulfilling orders — the browser can be closed mid-payment.
@@ -80,7 +80,7 @@ merchant wallet to the **original payer recorded on-chain**, through the separat
 
 1. `POST /api/v1/merchant/payments/{payment_id}/refunds {amount | amount_base, reason}` → a `PENDING` request and the exact two
    transactions to sign from the payout wallet: `USDT.approve(BillFlowRefunds, amount)` then `BillFlowRefunds.refund(paymentId, amount, refundRef, reasonHash)`.
-2. Merchant wallet sends them. (BillFlow never holds merchant keys.)
+2. Merchant wallet sends them. (NEXA BILLFLOW never holds merchant keys.)
 3. `POST /api/v1/merchant/refunds/verify {tx_hash}` (or the indexer) → the refund becomes `CONFIRMED` **only after** the
    `PaymentRefunded` event is verified (receipt, confirmations, matching merchant→payer USDT transfer, payment/merchant/payer/amount checks).
 4. `GET /api/v1/merchant/refunds/{id}/chain-check` re-reads the refund from the contract and compares it to our record.

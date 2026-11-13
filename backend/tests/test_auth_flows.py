@@ -121,5 +121,5 @@ def test_es256_token_verified_via_jwks_derived_from_supabase_url(w, client, monk
 
 def test_cors_origin_list_ignores_trailing_slashes_and_blanks():
     from app.core.config import Settings
-    s = Settings(cors_origins=" https://nexa-billflow-eth-eight.vercel.app/ , ,http://localhost:8080")
-    assert s.cors_list == ["https://nexa-billflow-eth-eight.vercel.app", "http://localhost:8080"]
+    s = Settings(cors_origins=" https://pocket-pay-eth-eight.vercel.app/ , ,http://localhost:8080")
+    assert s.cors_list == ["https://pocket-pay-eth-eight.vercel.app", "http://localhost:8080"]

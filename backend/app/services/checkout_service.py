@@ -1,4 +1,4 @@
-"""Merchant API keys + checkout sessions (the server-side half of the embeddable BillFlow checkout).
+"""Merchant API keys + checkout sessions (the server-side half of the embeddable NEXA BILLFLOW checkout).
 
 A checkout session = one invoice + one payment link, created through the same invoice service the dashboard uses, so every
 payment-safety rule (on-chain invoice id/hash, payable checks, quotes, verification-only status changes) is inherited unchanged.

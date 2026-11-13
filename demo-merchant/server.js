@@ -1,7 +1,7 @@
 'use strict';
 /**
- * "Bean Counter" — an INDEPENDENT demo merchant store that sells one product and accepts USDT through BillFlow.
- * It shares no code or database with BillFlow: it only calls the public Checkout API with an API key (server side),
+ * "Bean Counter" — an INDEPENDENT demo merchant store that sells one product and accepts USDT through NEXA BILLFLOW.
+ * It shares no code or database with NEXA BILLFLOW: it only calls the public Checkout API with an API key (server side),
  * embeds billflow.js in the browser, and receives signed webhooks. Zero npm dependencies.
  *
  *   BILLFLOW_URL=http://localhost:8000 BILLFLOW_API_KEY=bf_test_... BILLFLOW_WEBHOOK_SECRET=whsec_... node server.js
@@ -22,13 +22,13 @@ const orders = new Map();      // orderId -> { id, status, amount, tx, refunded,
 const seenEvents = new Set();  // webhook dedupe (delivery is at-least-once)
 
 const page = (body) => `<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
-<title>Bean Counter (BillFlow demo merchant)</title><style>body{font:16px system-ui;max-width:640px;margin:40px auto;padding:0 16px;color:#0f172a}
+<title>Bean Counter (NEXA BILLFLOW demo merchant)</title><style>body{font:16px system-ui;max-width:640px;margin:40px auto;padding:0 16px;color:#0f172a}
 button{padding:12px 18px;border:0;border-radius:10px;background:#4f46e5;color:#fff;font-size:16px;cursor:pointer}
 table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #e2e8f0;padding:6px;text-align:left;font-size:14px}code{font-size:12px}</style>${body}`;
 
 const storefront = () => page(`
 <h1>☕ Bean Counter</h1><p>Single-origin test beans — <b>${PRICE} USDT</b> (Whitechain Sepolia testnet)</p>
-<button id="buy">Pay with BillFlow</button> <span id="msg"></span>
+<button id="buy">Pay with NEXA BILLFLOW</button> <span id="msg"></span>
 <p><a href="/orders">Merchant view →</a></p>
 <script src="${BILLFLOW_URL}/billflow.js"></script>
 <script>
@@ -45,7 +45,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 function ordersPage() {
   const rows = [...orders.values()].reverse().map((o) =>
     `<tr><td><code>${esc(o.id)}</code></td><td>${esc(o.status)}</td><td>${esc(o.amount)}</td><td>${o.tx ? `<code>${esc(o.tx.slice(0, 12))}…</code>` : ''}</td><td>${esc(o.refunded || '')}</td></tr>`).join('');
-  return page(`<h1>Merchant view</h1><p>Status changes only when a <b>signed BillFlow webhook</b> arrives.</p>
+  return page(`<h1>Merchant view</h1><p>Status changes only when a <b>signed NEXA BILLFLOW webhook</b> arrives.</p>
   <table><tr><th>Order</th><th>Status</th><th>USDT</th><th>Tx</th><th>Refunded</th></tr>${rows || '<tr><td colspan=5>No orders yet</td></tr>'}</table><p><a href="/">← Store</a></p>`);
 }
 
@@ -63,7 +63,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/orders') return send(res, 200, ordersPage());
     if (req.method === 'GET' && url.pathname === '/api/orders') return send(res, 200, JSON.stringify([...orders.values()]), 'application/json');
     if (req.method === 'GET' && url.pathname === '/thanks') {
-      return send(res, 200, page(`<h1>Thank you!</h1><p>Order <code>${esc(url.searchParams.get('order'))}</code> — BillFlow verified your payment on-chain.</p><p><a href="/">← Store</a></p>`));
+      return send(res, 200, page(`<h1>Thank you!</h1><p>Order <code>${esc(url.searchParams.get('order'))}</code> — NEXA BILLFLOW verified your payment on-chain.</p><p><a href="/">← Store</a></p>`));
     }
     if (req.method === 'POST' && url.pathname === '/api/checkout') {
       if (!bf) return send(res, 500, JSON.stringify({ error: 'Set BILLFLOW_API_KEY' }), 'application/json');
@@ -99,5 +99,5 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-if (require.main === module) server.listen(PORT, () => console.log(`Bean Counter demo merchant on ${PUBLIC_URL} → BillFlow ${BILLFLOW_URL}`));
+if (require.main === module) server.listen(PORT, () => console.log(`Bean Counter demo merchant on ${PUBLIC_URL} → NEXA BILLFLOW ${BILLFLOW_URL}`));
 module.exports = { server, orders };

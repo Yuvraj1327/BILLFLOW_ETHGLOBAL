@@ -21,10 +21,15 @@ class DashboardData {
 /// The backend has no aggregate endpoint, so figures are computed from real invoice rows (up to 500) with exact BigInt math.
 final merchantDashboardProvider = FutureProvider.autoDispose<DashboardData>((ref) async {
   final api = ref.watch(apiProvider);
+  // Side requests start immediately and run alongside the invoice pages; each one is optional (failure = empty section).
+  final offersF = api.offers().then<Paged<Offer>?>((x) => x).catchError((_) => null);
+  final recentF = api.payments(pageSize: 5).then<Paged<Payment>?>((x) => x).catchError((_) => null);
+  final bizF = api.myBusiness().then<Business?>((x) => x).catchError((_) => null);
   final first = await api.invoices(page: 1, pageSize: 100);
   final all = [...first.items];
-  for (var p = 2; p <= 5 && all.length < first.total; p++) {
-    all.addAll((await api.invoices(page: p, pageSize: 100)).items);
+  final extraPages = [for (var p = 2; p <= 5 && (p - 1) * 100 < first.total; p++) api.invoices(page: p, pageSize: 100)];
+  for (final page in await Future.wait(extraPages)) {
+    all.addAll(page.items);
   }
   final by = <String, int>{};
   var invoiced = BigInt.zero, collected = BigInt.zero, outstanding = BigInt.zero;
@@ -36,19 +41,11 @@ final merchantDashboardProvider = FutureProvider.autoDispose<DashboardData>((ref
     if (i.status != 'PAID') outstanding += i.remainingBase;
   }
   final offers = <String, int>{};
-  Business? biz;
-  List<Payment> recent = const [];
-  try {
-    for (final o in (await api.offers()).items) {
-      offers[o.displayStatus] = (offers[o.displayStatus] ?? 0) + 1;
-    }
-  } catch (_) {}
-  try {
-    recent = (await api.payments(pageSize: 5)).items;
-  } catch (_) {}
-  try {
-    biz = await api.myBusiness();
-  } catch (_) {}
+  for (final o in (await offersF)?.items ?? const <Offer>[]) {
+    offers[o.displayStatus] = (offers[o.displayStatus] ?? 0) + 1;
+  }
+  final recent = (await recentF)?.items ?? const <Payment>[];
+  final biz = await bizF;
   return DashboardData(
     byStatus: by, invoiced: invoiced, collected: collected, outstanding: outstanding,
     decimals: all.isEmpty ? 6 : all.first.decimals, total: first.total, fetched: all.length, offers: offers, recent: recent, business: biz,

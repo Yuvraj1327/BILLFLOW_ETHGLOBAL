@@ -86,6 +86,43 @@ class _AuthScaffold extends StatelessWidget {
   }
 }
 
+class _RoleCard extends StatelessWidget {
+  const _RoleCard({required this.icon, required this.title, required this.body, required this.selected, required this.onTap});
+  final IconData icon;
+  final String title, body;
+  final bool selected;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '$title account. $body',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: selected ? cs.primary.withValues(alpha: .08) : null,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: selected ? cs.primary : Theme.of(context).dividerColor, width: selected ? 1.8 : 1),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [Icon(icon, color: selected ? cs.primary : null), const Spacer(), if (selected) Icon(Icons.check_circle, size: 20, color: cs.primary)]),
+            const SizedBox(height: 8),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 2),
+            Text(body, style: TextStyle(fontSize: 12.5, height: 1.3, color: Theme.of(context).hintColor)),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key, this.notice});
   final String? notice;
@@ -119,9 +156,9 @@ class _LoginState extends ConsumerState<LoginScreen> {
         if (mounted) setState(() => _error = 'Signed in, but your profile could not be loaded: ${errorText(e)}');
       }
     } on sb.AuthException catch (e) {
-      setState(() => _error = authErrorText(e));
+      if (mounted) setState(() => _error = authErrorText(e));
     } catch (e) {
-      setState(() => _error = errorText(e));
+      if (mounted) setState(() => _error = errorText(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -140,11 +177,11 @@ class _LoginState extends ConsumerState<LoginScreen> {
           key: _form,
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             if (notice != null) ...[InfoBanner(notice, tone: BannerTone.warn), const SizedBox(height: 14)],
-            TextFormField(controller: _email, keyboardType: TextInputType.emailAddress, autofillHints: const [AutofillHints.email], decoration: const InputDecoration(labelText: 'Email'), validator: v.email),
+            TextFormField(controller: _email, keyboardType: TextInputType.emailAddress, autofillHints: const [AutofillHints.email], textInputAction: TextInputAction.next, decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.mail_outline)), validator: v.email),
             const SizedBox(height: 14),
             TextFormField(
-              controller: _pass, obscureText: !_show, autofillHints: const [AutofillHints.password], onFieldSubmitted: (_) => _submit(),
-              decoration: InputDecoration(labelText: 'Password', suffixIcon: IconButton(icon: Icon(_show ? Icons.visibility_off : Icons.visibility), onPressed: () => setState(() => _show = !_show))),
+              controller: _pass, obscureText: !_show, autofillHints: const [AutofillHints.password], textInputAction: TextInputAction.done, onFieldSubmitted: (_) => _submit(),
+              decoration: InputDecoration(labelText: 'Password', prefixIcon: const Icon(Icons.lock_outline), suffixIcon: IconButton(tooltip: _show ? 'Hide password' : 'Show password', icon: Icon(_show ? Icons.visibility_off : Icons.visibility), onPressed: () => setState(() => _show = !_show))),
               validator: (x) => v.required(x, 'Password'),
             ),
             if (_error != null) ...[const SizedBox(height: 14), InfoBanner(_error!, tone: BannerTone.error)],
@@ -187,7 +224,7 @@ class _AdminLoginState extends ConsumerState<AdminLoginScreen> {
       setState(() => _error = authErrorText(e));
     } catch (e) {
       await supabase.auth.signOut();
-      setState(() => _error = errorText(e));
+      if (mounted) setState(() => _error = errorText(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -202,11 +239,11 @@ class _AdminLoginState extends ConsumerState<AdminLoginScreen> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             const InfoBanner('Restricted area. Admin accounts are created by an existing administrator.', icon: Icons.lock_outline),
             const SizedBox(height: 14),
-            TextFormField(controller: _email, keyboardType: TextInputType.emailAddress, autofillHints: const [AutofillHints.email], decoration: const InputDecoration(labelText: 'Admin email'), validator: v.email),
+            TextFormField(controller: _email, keyboardType: TextInputType.emailAddress, autofillHints: const [AutofillHints.email], textInputAction: TextInputAction.next, decoration: const InputDecoration(labelText: 'Admin email', prefixIcon: Icon(Icons.mail_outline)), validator: v.email),
             const SizedBox(height: 14),
             TextFormField(
-              controller: _pass, obscureText: !_show, autofillHints: const [AutofillHints.password], onFieldSubmitted: (_) => _submit(),
-              decoration: InputDecoration(labelText: 'Password', suffixIcon: IconButton(icon: Icon(_show ? Icons.visibility_off : Icons.visibility), onPressed: () => setState(() => _show = !_show))),
+              controller: _pass, obscureText: !_show, autofillHints: const [AutofillHints.password], textInputAction: TextInputAction.done, onFieldSubmitted: (_) => _submit(),
+              decoration: InputDecoration(labelText: 'Password', prefixIcon: const Icon(Icons.lock_outline), suffixIcon: IconButton(tooltip: _show ? 'Hide password' : 'Show password', icon: Icon(_show ? Icons.visibility_off : Icons.visibility), onPressed: () => setState(() => _show = !_show))),
               validator: (x) => v.required(x, 'Password'),
             ),
             if (_error != null) ...[const SizedBox(height: 14), InfoBanner(_error!, tone: BannerTone.error)],
@@ -227,8 +264,22 @@ class _RegisterState extends ConsumerState<RegisterScreen> {
   final _form = GlobalKey<FormState>();
   final _name = TextEditingController(), _email = TextEditingController(), _pass = TextEditingController();
   String _role = 'merchant';
-  bool _busy = false, _sent = false;
+  bool _busy = false, _sent = false, _show = false, _resending = false;
   String? _error;
+
+  Future<void> _resend() async {
+    setState(() => _resending = true);
+    try {
+      await supabase.auth.resend(type: sb.OtpType.signup, email: _email.text.trim());
+      if (mounted) toast(context, 'Confirmation email sent again.');
+    } on sb.AuthException catch (e) {
+      if (mounted) toast(context, authErrorText(e), error: true);
+    } catch (e) {
+      if (mounted) toast(context, errorText(e), error: true);
+    } finally {
+      if (mounted) setState(() => _resending = false);
+    }
+  }
 
   @override
   void dispose() { _name.dispose(); _email.dispose(); _pass.dispose(); super.dispose(); }
@@ -247,9 +298,9 @@ class _RegisterState extends ConsumerState<RegisterScreen> {
       await supabase.auth.setSession(out['refresh_token'] as String);
       await ref.read(authProvider.notifier).reload(); // verified role from the backend -> router redirects
     } on sb.AuthException catch (e) {
-      setState(() => _error = authErrorText(e));
+      if (mounted) setState(() => _error = authErrorText(e));
     } catch (e) {
-      setState(() => _error = errorText(e));
+      if (mounted) setState(() => _error = errorText(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -263,9 +314,13 @@ class _RegisterState extends ConsumerState<RegisterScreen> {
         child: Column(children: [
           const Icon(Icons.mark_email_read_outlined, size: 56, color: Tokens.blue),
           const SizedBox(height: 16),
-          Text('We sent a confirmation link to ${_email.text.trim()}. Open it, then log in.', textAlign: TextAlign.center),
+          Text('We sent a confirmation link to ${_email.text.trim()}. Open it, then log in.', textAlign: TextAlign.center, style: const TextStyle(height: 1.4)),
+          const SizedBox(height: 6),
+          Text('Nothing there? Check your spam folder.', textAlign: TextAlign.center, style: TextStyle(color: Theme.of(context).hintColor, fontSize: 13)),
           const SizedBox(height: 20),
-          FilledButton(onPressed: () => context.go('/login'), child: const Text('Go to log in')),
+          SizedBox(width: double.infinity, child: FilledButton(onPressed: () => context.go('/login'), child: const Text('Go to log in'))),
+          const SizedBox(height: 10),
+          SizedBox(width: double.infinity, child: BusyButton(label: 'Resend email', outlined: true, busy: _resending, onPressed: _resend)),
         ]),
       );
     }
@@ -275,30 +330,28 @@ class _RegisterState extends ConsumerState<RegisterScreen> {
       child: Form(
         key: _form,
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'merchant', label: Text('Merchant'), icon: Icon(Icons.storefront_outlined)),
-              ButtonSegment(value: 'investor', label: Text('Investor'), icon: Icon(Icons.trending_up)),
-            ],
-            selected: {_role},
-            onSelectionChanged: (s) => setState(() => _role = s.first),
-          ),
-          const SizedBox(height: 6),
-          Text(switch (_role) {
-            'merchant' => 'Issue invoices, get paid in USDT, request financing.',
-            _ => 'Fund verified invoices on-chain. You will complete a short verification first.',
-          }, style: TextStyle(color: Theme.of(context).hintColor, fontSize: 13)),
+          Row(children: [
+            Expanded(child: _RoleCard(icon: Icons.storefront_outlined, title: 'Merchant', body: 'Invoice, get paid in USDT, request financing.', selected: _role == 'merchant', onTap: () => setState(() => _role = 'merchant'))),
+            const SizedBox(width: 12),
+            Expanded(child: _RoleCard(icon: Icons.trending_up, title: 'Investor', body: 'Fund verified invoices on-chain.', selected: _role == 'investor', onTap: () => setState(() => _role = 'investor'))),
+          ]),
+          if (_role == 'investor') Padding(padding: const EdgeInsets.only(top: 8), child: Text('You will complete a short verification before you can fund.', style: TextStyle(color: Theme.of(context).hintColor, fontSize: 13))),
           const SizedBox(height: 16),
-          TextFormField(controller: _name, decoration: const InputDecoration(labelText: 'Your name'), validator: (x) => v.required(x, 'Name')),
+          TextFormField(controller: _name, textInputAction: TextInputAction.next, autofillHints: const [AutofillHints.name], decoration: const InputDecoration(labelText: 'Your name', prefixIcon: Icon(Icons.person_outline)), validator: (x) => v.required(x, 'Name')),
           const SizedBox(height: 14),
-          TextFormField(controller: _email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email'), validator: v.email),
+          TextFormField(controller: _email, keyboardType: TextInputType.emailAddress, textInputAction: TextInputAction.next, autofillHints: const [AutofillHints.email], decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.mail_outline)), validator: v.email),
           const SizedBox(height: 14),
-          TextFormField(controller: _pass, obscureText: true, decoration: const InputDecoration(labelText: 'Password'), validator: v.password),
+          TextFormField(
+            controller: _pass, obscureText: !_show, textInputAction: TextInputAction.done, autofillHints: const [AutofillHints.newPassword], onFieldSubmitted: (_) => _submit(), onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(labelText: 'Password', helperText: 'At least 8 characters', prefixIcon: const Icon(Icons.lock_outline), suffixIcon: IconButton(tooltip: _show ? 'Hide password' : 'Show password', icon: Icon(_show ? Icons.visibility_off : Icons.visibility), onPressed: () => setState(() => _show = !_show))),
+            validator: v.password,
+          ),
+          PasswordStrengthBar(_pass.text),
           if (_error != null) ...[const SizedBox(height: 14), InfoBanner(_error!, tone: BannerTone.error)],
           const SizedBox(height: 20),
           BusyButton(label: 'Create account', busy: _busy, onPressed: _submit),
           const SizedBox(height: 10),
-          const Text('Paying an invoice? No account needed: just open the payment link you were sent.', style: TextStyle(fontSize: 12)),
+          Text('Paying an invoice? No account needed: just open the payment link you were sent.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, color: Theme.of(context).hintColor)),
         ]),
       ),
     );
@@ -317,14 +370,19 @@ class _ForgotState extends State<ForgotScreen> {
   bool _busy = false, _sent = false;
   String? _error;
 
+  @override
+  void dispose() { _email.dispose(); super.dispose(); }
+
   Future<void> _submit() async {
     if (!_form.currentState!.validate()) return;
     setState(() { _busy = true; _error = null; });
     try {
       await supabase.auth.resetPasswordForEmail(_email.text.trim());
-      setState(() => _sent = true);
+      if (mounted) setState(() => _sent = true);
     } on sb.AuthException catch (e) {
-      setState(() => _error = authErrorText(e));
+      if (mounted) setState(() => _error = authErrorText(e));
+    } catch (e) {
+      if (mounted) setState(() => _error = errorText(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -333,12 +391,15 @@ class _ForgotState extends State<ForgotScreen> {
   @override
   Widget build(BuildContext context) => _AuthScaffold(
         title: 'Reset password',
+        footer: TextButton(onPressed: () => context.go('/login'), child: const Text('Back to log in')),
         child: _sent
             ? const InfoBanner('If an account exists for that email, a reset link is on its way.', tone: BannerTone.success, icon: Icons.check_circle_outline)
             : Form(
                 key: _form,
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  TextFormField(controller: _email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email'), validator: v.email),
+                  const Text('Enter the email you registered with and we will send you a link to choose a new password.', style: TextStyle(height: 1.4)),
+                  const SizedBox(height: 16),
+                  TextFormField(controller: _email, keyboardType: TextInputType.emailAddress, autofillHints: const [AutofillHints.email], textInputAction: TextInputAction.done, onFieldSubmitted: (_) => _submit(), decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.mail_outline)), validator: v.email),
                   if (_error != null) ...[const SizedBox(height: 14), InfoBanner(_error!, tone: BannerTone.error)],
                   const SizedBox(height: 20),
                   BusyButton(label: 'Send reset link', busy: _busy, onPressed: _submit),

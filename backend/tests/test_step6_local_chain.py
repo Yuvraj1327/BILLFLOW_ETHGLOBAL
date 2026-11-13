@@ -1,7 +1,7 @@
 """LOCAL-CHAIN end-to-end for Step 6, with REAL compiled contracts on Anvil (chain id 1874) and the REAL stack end to end:
 
-  demo merchant (Node) --API key--> BillFlow API (uvicorn) <--billflow.js pay() (Node, wallet shim -> Anvil)
-  BillFlow -> signed webhook -> demo merchant ;  merchant wallet -> BillFlowRefunds (real contract) -> backend verification
+  demo merchant (Node) --API key--> NEXA BILLFLOW API (uvicorn) <--billflow.js pay() (Node, wallet shim -> Anvil)
+  NEXA BILLFLOW -> signed webhook -> demo merchant ;  merchant wallet -> BillFlowRefunds (real contract) -> backend verification
 
 !! NOT a Whitechain test. The token is a local MockERC20 and keys are the public Anvil mnemonic. It proves the pieces work together;
    it proves nothing about the live testnet or the official USDT. !!

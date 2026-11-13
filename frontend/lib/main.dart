@@ -4,6 +4,7 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/app.dart';
+import 'app/providers.dart';
 import 'core/config/app_config.dart';
 
 Future<void> main() async {
@@ -13,5 +14,6 @@ Future<void> main() async {
   if (AppConfig.isConfigured) {
     await Supabase.initialize(url: AppConfig.supabaseUrl, anonKey: AppConfig.supabaseAnonKey);
   }
-  runApp(const ProviderScope(child: BillFlowApp()));
+  final theme = await loadSavedThemeMode();
+  runApp(ProviderScope(overrides: [initialThemeModeProvider.overrideWithValue(theme)], child: const BillFlowApp()));
 }

@@ -4,7 +4,7 @@ Show **real app screens and real transactions only**. If a step has not been don
 
 | Time | Scene | Say / show |
 |---|---|---|
-| 0:00–0:25 | Intro slide (≤4 bullets) | "Small businesses wait weeks for invoice payments and can't unlock cash. BillFlow = stablecoin invoice payments + invoice financing on Whitechain." |
+| 0:00–0:25 | Intro slide (≤4 bullets) | "Small businesses wait weeks for invoice payments and can't unlock cash. NEXA BILLFLOW = stablecoin invoice payments + invoice financing on Whitechain." |
 | 0:25–1:25 | **Operate** — merchant creates a 1,000 USDT invoice (show AI pre-fill + review), copies the payment link. Switch to the customer's browser: connect wallet, network switch to 1874, balance, approve, pay | Highlight: USDT goes **straight to the merchant**; quote is signed server-side and bound to the payer. |
 | 1:25–1:55 | Pending → **Verified** by backend; open explorer on the tx hash; show receipt | "The app only says paid after the backend re-reads the chain." |
 | 1:55–2:50 | **Tokenize** — merchant requests financing on an unpaid invoice; admin reviews evidence and publishes on-chain; investor marketplace → risk disclosure → approve + fund; show tx + merchant receiving the advance | Say plainly: testnet, credit risk, not guaranteed returns. |

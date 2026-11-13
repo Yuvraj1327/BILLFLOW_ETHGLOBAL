@@ -11,7 +11,7 @@ from app.api import (admin, ai, auth, blockchain, businesses, financing, investo
                      static_pages, users)
 from app.core.config import get_settings
 from app.core.database import close_pool, init_pool, ping, pool_ready
-from app.core.exceptions import install_handlers
+from app.core.exceptions import CatchAllMiddleware, install_handlers
 from app.core.logging import setup_logging
 from app.core.public_cors import PublicCorsMiddleware
 
@@ -48,6 +48,7 @@ def create_app() -> FastAPI:
                   openapi_url="/openapi.json" if s.enable_docs else None,
                   description="Web3 invoicing, USDT payments and invoice financing on Whitechain Sepolia (chain 1874). "
                               "Send `Authorization: Bearer <Supabase access token>`.")
+    app.add_middleware(CatchAllMiddleware)  # innermost: its 500s still get CORS headers from the middleware added below
     if s.cors_list or s.cors_origin_regex:
         app.add_middleware(CORSMiddleware, allow_origins=s.cors_list, allow_origin_regex=s.cors_origin_regex,
                            allow_methods=["*"], allow_headers=["*"], allow_credentials=False)

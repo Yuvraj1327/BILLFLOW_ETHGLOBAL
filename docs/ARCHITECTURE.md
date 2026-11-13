@@ -1,4 +1,4 @@
-# BillFlow — Architecture (Step 1)
+# NEXA BILLFLOW — Architecture (Step 1)
 
 Status: **draft for review**. Nothing below has been deployed or tested on-chain yet.
 

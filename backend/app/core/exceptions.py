@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import psycopg
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -64,7 +65,42 @@ def install_handlers(app: FastAPI) -> None:
     async def _http(_: Request, exc: StarletteHTTPException):
         return JSONResponse(status_code=exc.status_code, content=_body(f"http_{exc.status_code}", str(exc.detail)))
 
+    @app.exception_handler(psycopg.errors.UndefinedTable)
+    @app.exception_handler(psycopg.errors.UndefinedColumn)
+    async def _schema_outdated(_: Request, exc: Exception):
+        # Handled here (not by the catch-all below) so the response still passes through CORSMiddleware: a bare 500 from
+        # ServerErrorMiddleware carries no CORS headers and browsers report it as a network failure.
+        log.error("database schema is missing an object: %s", exc)
+        return JSONResponse(status_code=503, content=_body(
+            "schema_outdated", "The database schema is out of date. An administrator must apply the latest Supabase migrations."))
+
     @app.exception_handler(Exception)
     async def _unhandled(_: Request, exc: Exception):
         log.exception("unhandled error")  # details stay in server logs only
         return JSONResponse(status_code=500, content=_body("internal_error", "Internal server error"))
+
+
+class CatchAllMiddleware:
+    """Turns any unhandled exception into the JSON 500 envelope INSIDE the CORS middleware.
+    Starlette's own `Exception` handler runs outside CORSMiddleware, so those 500s had no Access-Control-Allow-Origin and the
+    browser surfaced them as an opaque network error instead of the real status."""
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        started = False
+
+        async def wrapped(msg):
+            nonlocal started
+            started = started or msg["type"] == "http.response.start"
+            await send(msg)
+
+        try:
+            await self.app(scope, receive, wrapped)
+        except Exception:
+            if started:
+                raise
+            log.exception("unhandled error")
+            await JSONResponse(status_code=500, content=_body("internal_error", "Internal server error"))(scope, receive, send)

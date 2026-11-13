@@ -20,6 +20,7 @@ class _PagedListState<T> extends State<PagedList<T>> {
   int _page = 0;
   bool _loading = true, _more = false, _loadingMore = false;
   Object? _error;
+  int _gen = 0; // ignores responses from a superseded reload
 
   @override
   void initState() {
@@ -34,27 +35,34 @@ class _PagedListState<T> extends State<PagedList<T>> {
   }
 
   Future<void> _first() async {
+    final gen = ++_gen;
     setState(() {
       _loading = true;
+      _loadingMore = false;
       _error = null;
     });
     try {
       final p = await widget.load(1);
+      if (gen != _gen) return;
       _items
         ..clear()
         ..addAll(p.items);
       _page = 1;
       _more = p.hasMore;
     } catch (e) {
+      if (gen != _gen) return;
       _error = e;
     }
     if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _next() async {
+    if (_loadingMore) return;
+    final gen = _gen;
     setState(() => _loadingMore = true);
     try {
       final p = await widget.load(_page + 1);
+      if (gen != _gen) return;
       _items.addAll(p.items);
       _page += 1;
       _more = p.hasMore;
@@ -66,7 +74,7 @@ class _PagedListState<T> extends State<PagedList<T>> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading && _items.isEmpty) return const Center(child: CircularProgressIndicator());
+    if (_loading && _items.isEmpty) return const SingleChildScrollView(padding: EdgeInsets.all(16), child: SkeletonList(showStats: false, rows: 6));
     if (_error != null && _items.isEmpty) return ErrorState(_error!, onRetry: _first);
     if (_items.isEmpty) {
       return ListView(padding: const EdgeInsets.all(16), children: [if (widget.header != null) widget.header!, widget.empty]);

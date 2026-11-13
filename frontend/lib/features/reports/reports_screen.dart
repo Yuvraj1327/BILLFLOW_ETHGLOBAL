@@ -67,7 +67,7 @@ class ReportsScreen extends ConsumerWidget {
               onPressed: report.hasValue
                   ? () async {
                       final csv = report.value!;
-                      if (!downloadTextFile('nexa-billflow-payments.csv', csv)) await copyText(context, csv, 'CSV copied to clipboard');
+                      if (!downloadTextFile('billflow-payments.csv', csv)) await copyText(context, csv, 'CSV copied to clipboard');
                     }
                   : null,
               icon: const Icon(Icons.download),

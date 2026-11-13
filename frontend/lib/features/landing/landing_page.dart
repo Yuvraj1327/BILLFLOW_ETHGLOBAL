@@ -317,7 +317,7 @@ class _Workflow extends StatelessWidget {
 class _Benefits extends StatelessWidget {
   const _Benefits({required this.width});
   final double width;
-  Widget _card(IconData icon, String title, List<String> points) => Container(
+  Widget _card(BuildContext context, IconData icon, String title, List<String> points, String cta, String route) => Container(
         padding: const EdgeInsets.all(26),
         decoration: BoxDecoration(color: Tokens.ink, borderRadius: BorderRadius.circular(22)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -329,13 +329,21 @@ class _Benefits extends StatelessWidget {
             Padding(padding: const EdgeInsets.only(bottom: 10), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Icon(Icons.check_circle, size: 18, color: Color(0xFF2CC4B7)), const SizedBox(width: 10), Expanded(child: Text(p, style: const TextStyle(color: Colors.white70, height: 1.4))),
             ])),
+          const SizedBox(height: 6),
+          TextButton.icon(
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFF2CC4B7), padding: EdgeInsets.zero, alignment: Alignment.centerLeft),
+            onPressed: () => context.go(route),
+            icon: const Icon(Icons.arrow_forward, size: 18),
+            iconAlignment: IconAlignment.end,
+            label: Text(cta, style: const TextStyle(fontWeight: FontWeight.w800)),
+          ),
         ]),
       );
   @override
   Widget build(BuildContext context) => _Cards(width: width, children: [
-        _card(Icons.storefront_outlined, 'Merchants', ['Get paid faster with payment links', 'Unlock cash from unpaid invoices', 'Clean reports for your accountant']),
-        _card(Icons.trending_up, 'Investors', ['Browse verified invoice offers', 'Fund on-chain with full transparency', 'Track portfolio and settlements']),
-        _card(Icons.person_outline, 'Customers', ['Pay from your own wallet', 'No account or sign-up', 'Get a verified receipt']),
+        _card(context, Icons.storefront_outlined, 'Merchants', ['Get paid faster with payment links', 'Unlock cash from unpaid invoices', 'Clean reports for your accountant'], 'Start as a merchant', '/register'),
+        _card(context, Icons.trending_up, 'Investors', ['Browse verified invoice offers', 'Fund on-chain with full transparency', 'Track portfolio and settlements'], 'Start as an investor', '/register'),
+        _card(context, Icons.person_outline, 'Customers', ['Pay from your own wallet', 'No account or sign-up', 'Get a verified receipt'], 'Pay an invoice', '/pay'),
       ]);
 }
 

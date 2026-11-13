@@ -125,7 +125,7 @@ def test_event_from_unconfigured_contract_ignored(setup, client, chain):
     m, inv = setup
     t = pay(chain, inv, contract="0x" + "77" * 20)  # attacker's lookalike contract
     b = verify(client, m["h"], t).json()
-    assert b["stage"] == "rejected" and "no BillFlow contract events" in b["detail"]
+    assert b["stage"] == "rejected" and "no NEXA BILLFLOW contract events" in b["detail"]
     assert client.get(f"{API}/invoices/{inv['id']}", headers=m["h"]).json()["status"] == "PENDING"
 
 

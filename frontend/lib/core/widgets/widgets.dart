@@ -12,7 +12,15 @@ import '../utils/format.dart';
 void toast(BuildContext context, String message, {bool error = false}) {
   final m = ScaffoldMessenger.of(context);
   m.hideCurrentSnackBar();
-  m.showSnackBar(SnackBar(content: Text(message), backgroundColor: error ? Tokens.danger : null));
+  m.showSnackBar(SnackBar(
+    backgroundColor: error ? Tokens.danger : null,
+    duration: Duration(seconds: error ? 6 : 3),
+    content: Row(children: [
+      Icon(error ? Icons.error_outline : Icons.check_circle_outline, size: 20, color: Colors.white),
+      const SizedBox(width: 10),
+      Expanded(child: Text(message)),
+    ]),
+  ));
 }
 
 Future<void> copyText(BuildContext context, String text, [String label = 'Copied']) async {
@@ -76,7 +84,7 @@ class AppCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Card(
         clipBehavior: Clip.antiAlias,
-        child: InkWell(onTap: onTap, child: Padding(padding: padding, child: child)),
+        child: onTap == null ? Padding(padding: padding, child: child) : InkWell(onTap: onTap, child: Padding(padding: padding, child: child)),
       );
 }
 
@@ -186,10 +194,14 @@ class EmptyState extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 48, color: Theme.of(context).hintColor),
-            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withValues(alpha: .08), shape: BoxShape.circle),
+              child: Icon(icon, size: 34, color: Theme.of(context).colorScheme.primary),
+            ),
+            const SizedBox(height: 16),
             Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700), textAlign: TextAlign.center),
-            if (message != null) ...[const SizedBox(height: 6), Text(message!, textAlign: TextAlign.center, style: TextStyle(color: Theme.of(context).hintColor))],
+            if (message != null) ...[const SizedBox(height: 6), ConstrainedBox(constraints: const BoxConstraints(maxWidth: 420), child: Text(message!, textAlign: TextAlign.center, style: TextStyle(color: Theme.of(context).hintColor, height: 1.4)))],
             if (action != null) ...[const SizedBox(height: 16), action!],
           ]),
         ),
@@ -220,7 +232,7 @@ class AsyncView<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) => value.when(
         skipLoadingOnReload: true,
-        loading: () => const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator())),
+        loading: () => const SkeletonList(),
         error: (e, _) => ErrorState(e, onRetry: onRetry),
         data: (d) => (isEmpty?.call(d) ?? false) ? (empty ?? const SizedBox.shrink()) : builder(d),
       );
@@ -234,8 +246,9 @@ class BusyButton extends StatelessWidget {
   final IconData? icon;
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final child = busy
-        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.4))
+        ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.4, color: outlined ? cs.primary : cs.onPrimary))
         : Row(mainAxisSize: MainAxisSize.min, children: [if (icon != null) ...[Icon(icon, size: 18), const SizedBox(width: 8)], Flexible(child: Text(label, overflow: TextOverflow.ellipsis))]);
     return outlined
         ? OutlinedButton(onPressed: busy ? null : onPressed, child: child)
@@ -414,6 +427,92 @@ class InvestorGate extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+
+// ───────────── loading skeletons (no extra dependency) ─────────────
+/// One shared pulse for every skeleton block under it, so a screen with many placeholders drives a single animation.
+class _Pulse extends StatefulWidget {
+  const _Pulse({required this.child});
+  final Widget child;
+  @override
+  State<_Pulse> createState() => _PulseState();
+}
+
+class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))..repeat(reverse: true);
+  @override
+  void dispose() { _c.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) => FadeTransition(opacity: Tween(begin: .45, end: 1.0).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut)), child: widget.child);
+}
+
+class SkeletonBlock extends StatelessWidget {
+  const SkeletonBlock({super.key, this.height = 16, this.width, this.radius = 8});
+  final double height, radius;
+  final double? width;
+  @override
+  Widget build(BuildContext context) {
+    final light = Theme.of(context).brightness == Brightness.light;
+    return Container(height: height, width: width, decoration: BoxDecoration(color: light ? const Color(0xFFE5E8EC) : const Color(0xFF222222), borderRadius: BorderRadius.circular(radius)));
+  }
+}
+
+/// Placeholder shown while data loads: a row of stat tiles followed by list rows. Announced to screen readers as "Loading".
+class SkeletonList extends StatelessWidget {
+  const SkeletonList({super.key, this.rows = 4, this.showStats = true});
+  final int rows;
+  final bool showStats;
+  @override
+  Widget build(BuildContext context) => Semantics(
+        label: 'Loading',
+        child: ExcludeSemantics(
+          child: _Pulse(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              if (showStats) ...[
+                const Row(children: [
+                  Expanded(child: SkeletonBlock(height: 92, radius: 16)),
+                  SizedBox(width: 12),
+                  Expanded(child: SkeletonBlock(height: 92, radius: 16)),
+                ]),
+                const SizedBox(height: 16),
+              ],
+              for (var i = 0; i < rows; i++) const Padding(padding: EdgeInsets.only(bottom: 10), child: SkeletonBlock(height: 64, radius: 16)),
+            ]),
+          ),
+        ),
+      );
+}
+
+// ───────────── password strength ─────────────
+/// 0-4 score from length and character variety. Purely advisory (the real rule is `validators.password`).
+int passwordScore(String p) {
+  var s = 0;
+  if (p.length >= 8) s++;
+  if (p.length >= 12) s++;
+  if (RegExp(r'[a-z]').hasMatch(p) && RegExp(r'[A-Z]').hasMatch(p)) s++;
+  if (RegExp(r'\d').hasMatch(p) && RegExp(r'[^A-Za-z0-9]').hasMatch(p)) s++;
+  return s;
+}
+
+class PasswordStrengthBar extends StatelessWidget {
+  const PasswordStrengthBar(this.password, {super.key});
+  final String password;
+  @override
+  Widget build(BuildContext context) {
+    if (password.isEmpty) return const SizedBox.shrink();
+    final s = passwordScore(password);
+    final c = [Tokens.danger, Tokens.danger, Tokens.warning, Tokens.success, Tokens.success][s];
+    final label = ['Too weak', 'Weak', 'Fair', 'Good', 'Strong'][s];
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(children: [
+        for (var i = 0; i < 4; i++) Expanded(child: Container(height: 4, margin: EdgeInsets.only(right: i < 3 ? 4 : 0), decoration: BoxDecoration(color: i < s ? c : Theme.of(context).dividerColor, borderRadius: BorderRadius.circular(2)))),
+        const SizedBox(width: 10),
+        Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: c)),
+      ]),
     );
   }
 }

@@ -1,4 +1,4 @@
-# BillFlow — Development roadmap, configuration checklist & manual actions
+# NEXA BILLFLOW — Development roadmap, configuration checklist & manual actions
 
 Everything marked **YOU** is a manual action that only you can perform (accounts, credentials, funding, approvals).
 

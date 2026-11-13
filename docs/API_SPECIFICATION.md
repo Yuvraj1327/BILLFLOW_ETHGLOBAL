@@ -1,4 +1,4 @@
-# BillFlow — API specification (v1, Step 1 design; not implemented)
+# NEXA BILLFLOW — API specification (v1, Step 1 design; not implemented)
 
 > Step 2 amendment: on-chain ids and approvals changed — see `SMART_CONTRACT_DESIGN.md`. Admin "approve financing" now means: verifier wallet signs `verifyInvoice`, then the business (or operator key) calls `createOffer`; `onchain_offer_id` = on-chain `invoiceId`. Admin business/investor verification also calls `setBusinessApproved` / `setInvestorApproved`.
 

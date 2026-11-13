@@ -1,4 +1,4 @@
-# BillFlow — Database schema (Supabase PostgreSQL)
+# NEXA BILLFLOW — Database schema (Supabase PostgreSQL)
 
 Source of truth: `supabase/migrations/0001_init.sql` (schema) and `0002_rls.sql` (RLS, grants, storage bucket). **Not yet executed on any Supabase project.** Syntax was parsed locally; a real run is a manual step (see DEVELOPMENT_ROADMAP).
 

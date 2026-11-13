@@ -17,22 +17,35 @@
   <base href="/">
 
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#002A64">
+  <meta property="og:title" content="Pocket Pay">
+  <meta property="og:description" content="USDT invoice payments and invoice financing for businesses.">
+  <meta property="og:image" content="icons/Icon-512.png">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Pocket Pay: USDT invoice payments and invoice financing for businesses.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="NEXA BILLFLOW">
+  <meta name="apple-mobile-web-app-title" content="POCKET PAY">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>NEXA BILLFLOW</title>
+  <title>POCKET PAY</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    #pp-splash{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#fff;z-index:1;transition:opacity .3s}
+    #pp-splash img{width:96px;height:96px;border-radius:22px}
+    #pp-splash b{font:900 22px/1 system-ui,sans-serif;letter-spacing:2px;color:#002A64}
+    #pp-splash b span{color:#01988E}
+  </style>
 </head>
 <body>
+  <div id="pp-splash"><img src="splash_logo.png" alt="Pocket Pay"><b>POCKET <span>PAY</span></b></div>
   <script src="flutter_bootstrap.js" async></script>
+  <script>window.addEventListener("flutter-first-frame",function(){var e=document.getElementById("pp-splash");if(e){e.style.opacity=0;setTimeout(function(){e.remove()},350)}});</script>
 </body>
 </html>

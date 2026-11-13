@@ -147,7 +147,7 @@ class CustomerDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _DetailState extends ConsumerState<CustomerDetailScreen> {
-  int _token = 0;
+  final int _token = 0;
   @override
   Widget build(BuildContext context) {
     final cu = ref.watch(customerProvider(widget.id));

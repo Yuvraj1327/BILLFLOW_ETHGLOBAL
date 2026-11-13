@@ -18,17 +18,36 @@ sb.SupabaseClient get supabase => sb.Supabase.instance.client;
 
 // ───────────── infrastructure ─────────────
 final apiClientProvider = Provider<ApiClient>((ref) {
+  // Single-flight: concurrent 401s share one refresh. Supabase rotates refresh tokens, so parallel refreshes would
+  // invalidate each other and wrongly sign the user out.
+  Future<bool>? inFlight;
+  Future<bool> refresh() => inFlight ??= () async {
+        try {
+          final r = await supabase.auth.refreshSession();
+          return r.session != null;
+        } on sb.AuthException catch (e) {
+          // Only a definitively rejected session ends the login; a network blip must not.
+          final st = int.tryParse(e.statusCode ?? '');
+          if (st != null && st >= 400 && st < 500) await supabase.auth.signOut();
+          return false;
+        } catch (_) {
+          return false;
+        }
+      }().whenComplete(() => inFlight = null);
+
   return ApiClient(
-    tokenGetter: () async => supabase.auth.currentSession?.accessToken,
-    refreshSession: () async {
-      try {
-        final r = await supabase.auth.refreshSession();
-        return r.session != null;
-      } catch (_) {
-        await supabase.auth.signOut(); // session cannot be recovered -> router sends the user to login
-        return false;
+    tokenGetter: () async {
+      final session = supabase.auth.currentSession;
+      if (session == null) return null;
+      // Refresh proactively when the access token is expired or about to expire, instead of sending it and eating a 401.
+      final exp = session.expiresAt;
+      if (exp != null && exp * 1000 - DateTime.now().millisecondsSinceEpoch < 60000) {
+        await refresh();
+        return supabase.auth.currentSession?.accessToken;
       }
+      return session.accessToken;
     },
+    refreshSession: refresh,
   );
 });
 
@@ -37,24 +56,29 @@ final chainReaderProvider = Provider<ChainReader>((ref) => ChainReader());
 final walletServiceProvider = Provider<WalletService>((ref) => createWalletService());
 
 // ───────────── theme setting ─────────────
-class ThemeModeController extends Notifier<ThemeMode> {
-  static const _key = 'theme_mode';
-  @override
-  ThemeMode build() {
-    _load();
+const _themeKey = 'theme_mode';
+
+/// Saved theme, read once in main() before the first frame (overridden there) so a dark-mode user never sees a light flash.
+final initialThemeModeProvider = Provider<ThemeMode>((ref) => ThemeMode.light);
+
+ThemeMode parseThemeMode(String? v) => switch (v) { 'dark' => ThemeMode.dark, 'system' => ThemeMode.system, _ => ThemeMode.light };
+
+Future<ThemeMode> loadSavedThemeMode() async {
+  try {
+    return parseThemeMode((await SharedPreferences.getInstance()).getString(_themeKey));
+  } catch (_) {
     return ThemeMode.light; // light is the default
   }
+}
 
-  Future<void> _load() async {
-    final p = await SharedPreferences.getInstance();
-    final v = p.getString(_key);
-    if (v == 'dark') state = ThemeMode.dark;
-  }
+class ThemeModeController extends Notifier<ThemeMode> {
+  @override
+  ThemeMode build() => ref.read(initialThemeModeProvider);
 
   Future<void> set(ThemeMode m) async {
     state = m;
     final p = await SharedPreferences.getInstance();
-    await p.setString(_key, m == ThemeMode.dark ? 'dark' : 'light');
+    await p.setString(_themeKey, m.name);
   }
 }
 

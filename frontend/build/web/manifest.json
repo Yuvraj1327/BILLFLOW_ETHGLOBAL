@@ -1,11 +1,11 @@
 {
-    "name": "NEXA BILLFLOW",
-    "short_name": "NEXA BILLFLOW",
+    "name": "POCKET PAY",
+    "short_name": "POCKET PAY",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#FFFFFF",
     "theme_color": "#002A64",
-    "description": "A new Flutter project.",
+    "description": "Pocket Pay: USDT invoice payments and invoice financing for businesses.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -1,4 +1,4 @@
-# BillFlow — Security rules (Step 1)
+# NEXA BILLFLOW — Security rules (Step 1)
 
 Hackathon MVP on a testnet. These rules are design requirements for Steps 2–5; none is claimed as implemented or tested yet.
 

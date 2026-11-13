@@ -164,7 +164,7 @@ def _jsonable(v: Any) -> Any:
 
 
 class EventDecoder:
-    """Topic0 -> event ABI for the two BillFlow contracts (+ ERC-20 Transfer). Built from the shipped ABIs."""
+    """Topic0 -> event ABI for the two NEXA BILLFLOW contracts (+ ERC-20 Transfer). Built from the shipped ABIs."""
 
     def __init__(self, settings: Settings):
         self.s = settings

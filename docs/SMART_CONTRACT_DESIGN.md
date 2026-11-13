@@ -1,4 +1,4 @@
-# BillFlow — Smart contract design (Step 2, implemented)
+# NEXA BILLFLOW — Smart contract design (Step 2, implemented)
 
 Status: **implemented and unit-tested locally; NOT deployed to Whitechain Sepolia; USDT address NOT verified.**
 Code: `contracts/src/BillFlowPayments.sol`, `contracts/src/InvoiceFinancing.sol` · Foundry · Solidity 0.8.28 · OpenZeppelin v5.1.0 (git submodule) · EVM target `shanghai`.

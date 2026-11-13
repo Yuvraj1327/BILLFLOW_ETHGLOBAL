@@ -1,4 +1,4 @@
-# BillFlow Flutter app — Step 4 notes
+# NEXA BILLFLOW Flutter app — Step 4 notes
 
 ## Principles enforced in code
 * **The backend decides.** Payment/financing success is shown only when `/public/invoices/{token}/status`, `/payments/verify` or

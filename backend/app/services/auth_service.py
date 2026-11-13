@@ -16,7 +16,7 @@ from app.utils.validators import checksum, norm_address
 
 
 def _message(wallet: str, nonce: str, chain_id: int) -> str:
-    return (f"BillFlow wallet verification\nWallet: {checksum(wallet)}\nNonce: {nonce}\nChain ID: {chain_id}\n"
+    return (f"NEXA BILLFLOW wallet verification\nWallet: {checksum(wallet)}\nNonce: {nonce}\nChain ID: {chain_id}\n"
             "Signing this message does not move funds or grant any permission.")
 
 

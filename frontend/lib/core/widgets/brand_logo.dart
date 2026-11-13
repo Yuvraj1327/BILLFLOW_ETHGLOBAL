@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme/app_theme.dart';
 
-/// The "B" symbol of the logo (assets/brand). The artwork is navy on transparent, so in dark mode it sits on a white tile.
+/// The wallet symbol of the logo (assets/brand). The artwork is a self-contained rounded blue tile, so it works on light and dark surfaces.
 class BillflowLogo extends StatelessWidget {
   const BillflowLogo({super.key, this.height = 40, this.mark = true, this.tile = false});
   final double height;

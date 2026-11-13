@@ -250,7 +250,7 @@ def test_funding_by_unlinked_wallet_parks_then_applies(env, client, chain, conn)
 
 @pytest.mark.parametrize("over,stage", [
     ({"faceValue": 99_000_000}, "rejected"), ({"business": "0x" + "ee" * 20}, "rejected"),
-    ({"invoiceHash": h32("nope")}, "verified"),  # unknown to BillFlow => ignored as a harmless no-op, never linked
+    ({"invoiceHash": h32("nope")}, "verified"),  # unknown to NEXA BILLFLOW => ignored as a harmless no-op, never linked
 ])
 def test_bad_registration_never_links(env, client, chain, over, stage):
     o = submit(client, env).json(); approve(client, env, o["id"])

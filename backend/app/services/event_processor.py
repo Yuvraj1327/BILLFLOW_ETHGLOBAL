@@ -116,7 +116,7 @@ def _payment_refunded(c: Connection, ev: DecodedEvent, s: Settings) -> Outcome:
             return Outcome("duplicate", "refund already confirmed")
         refund_repo.confirm(c, pending["id"], fields)
         refund_id = pending["id"]
-    else:  # merchant refunded directly through the contract, outside BillFlow's UI: still record the verified fact
+    else:  # merchant refunded directly through the contract, outside NEXA BILLFLOW's UI: still record the verified fact
         row = refund_repo.insert_confirmed(c, {"payment_id": p["id"], "invoice_id": p["invoice_id"], "business_id": p["business_id"],
                                                "amount_base": amount, "refund_ref": a["refundRef"], "reason_hash": a["reasonHash"],
                                                **fields})
@@ -156,7 +156,7 @@ def _registered(c: Connection, ev: DecodedEvent, s: Settings) -> Outcome:
     a = ev.args
     offer = fin_repo.get_offer_by_hash(c, a["invoiceHash"], lock=True)
     if offer is None:
-        return Outcome("ignored", "not an invoice known to BillFlow")
+        return Outcome("ignored", "not an invoice known to NEXA BILLFLOW")
     if offer["status"] not in ("REQUESTED", "UNDER_REVIEW", "APPROVED"):
         return _rej(f"registered_while_{offer['status']}")
     if not offer["payout_wallet"] or offer["payout_wallet"] != a["business"]:
@@ -412,7 +412,7 @@ def verify_transaction(chain: BlockchainService, tx_hash: str, kinds: tuple[str,
         return res
     events = chain.decode_receipt(receipt, kinds)
     if not events:
-        res.stage, res.detail = "rejected", "Transaction contains no BillFlow contract events from the configured contracts"
+        res.stage, res.detail = "rejected", "Transaction contains no NEXA BILLFLOW contract events from the configured contracts"
         return res
     if "payments" in kinds:  # cross-check the real USDT movement in the same receipt
         transfers = chain.usdt_transfers(receipt)

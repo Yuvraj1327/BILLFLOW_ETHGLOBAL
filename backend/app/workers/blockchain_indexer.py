@@ -1,4 +1,4 @@
-"""Polling indexer for BillFlow contract events (HTTP RPC; no websocket dependency).
+"""Polling indexer for NEXA BILLFLOW contract events (HTTP RPC; no websocket dependency).
 
 Safety properties
 * Only blocks with >= MIN_CONFIRMATIONS are scanned (reorg-resistant by depth).

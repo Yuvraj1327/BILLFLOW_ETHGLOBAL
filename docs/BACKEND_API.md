@@ -1,4 +1,4 @@
-# BillFlow backend — Step 3 (FastAPI · Supabase · Anthropic · Whitechain indexer)
+# NEXA BILLFLOW backend — Step 3 (FastAPI · Supabase · Anthropic · Whitechain indexer)
 
 Interactive docs: `GET /docs` (Swagger) and `GET /redoc`. Base path `/api/v1`. All errors use one envelope:
 `{"error": {"code", "message", "details"}}`. Auth: `Authorization: Bearer <Supabase access token>`.

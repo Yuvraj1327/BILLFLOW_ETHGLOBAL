@@ -1,11 +1,11 @@
-/*! BillFlow Checkout widget v0.1 — dependency-free (no build step). Testnet only: Whitechain Sepolia (chain 1874), official USDT.
+/*! NEXA BILLFLOW Checkout widget v0.1 — dependency-free (no build step). Testnet only: Whitechain Sepolia (chain 1874), official USDT.
  *
  *   <script src="https://YOUR-BILLFLOW-HOST/billflow.js"></script>
  *   BillFlow.checkout({ url: session.checkout_url, onSuccess: (receipt) => ..., onError: (err) => ... });
  *
  * Security model: the wallet signs only (1) USDT.approve(BillFlowPayments, amount) and (2) BillFlowPayments.payInvoice(quote, sig),
- * where the quote was signed by the BillFlow backend and binds payer/merchant/amount/invoice. `onSuccess` fires ONLY after the
- * BillFlow backend has independently verified the transaction on-chain (receipt, confirmations, event, USDT transfer). A wallet's
+ * where the quote was signed by the NEXA BILLFLOW backend and binds payer/merchant/amount/invoice. `onSuccess` fires ONLY after the
+ * NEXA BILLFLOW backend has independently verified the transaction on-chain (receipt, confirmations, event, USDT transfer). A wallet's
  * "success" is never trusted. No private keys, secrets or API keys ever reach this script.
  */
 (function (root, factory) {
@@ -55,7 +55,7 @@
   function parseCheckoutUrl(url, apiBase) {
     var u = new URL(url, typeof location !== 'undefined' ? location.href : undefined);
     var m = u.pathname.match(/\/pay\/([A-Za-z0-9_\-]{32,128})\/?$/);
-    if (!m) throw BillFlowError('bad_checkout_url', 'Not a BillFlow checkout URL');
+    if (!m) throw BillFlowError('bad_checkout_url', 'Not a NEXA BILLFLOW checkout URL');
     return { token: m[1], apiBase: (apiBase || u.origin + '/api/v1').replace(/\/$/, '') };
   }
 
@@ -156,7 +156,7 @@
     status('mining', { txHash: txHash });
     await waitMined(provider, txHash, opts.minedTimeoutMs || 120000);
 
-    // The wallet says "mined". The BillFlow backend decides whether it counts.
+    // The wallet says "mined". The NEXA BILLFLOW backend decides whether it counts.
     status('verifying', { txHash: txHash });
     var until = Date.now() + (opts.verifyTimeoutMs || 180000), last = null;
     while (Date.now() < until) {

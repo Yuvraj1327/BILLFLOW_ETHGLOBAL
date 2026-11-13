@@ -5,7 +5,7 @@ List<Json> asJsonList(dynamic v) => (v as List).map((e) => asJson(e)).toList();
 
 extension JsonX on Json {
   String str(String k) => (this[k] ?? '').toString();
-  String? strN(String k) => this[k] == null ? null : this[k].toString();
+  String? strN(String k) => this[k]?.toString();
   int integer(String k) => this[k] is int ? this[k] as int : int.tryParse('${this[k]}') ?? 0;
   int? integerN(String k) => this[k] == null ? null : integer(k);
   bool flag(String k) => this[k] == true;

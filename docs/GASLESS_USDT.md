@@ -22,7 +22,7 @@ a merchant-sponsored relayer submits `permit` + `payInvoice` (needs a small `pay
 requires `msg.sender == payer`, so the existing contract would stay untouched). Required controls: per-merchant daily gas budget,
 per-tx value cap, deadline ≤ 15 min, relayer only calls the allow-listed contract, nonce from the token (replay-safe),
 rate limiting, and a kill switch. **If only EIP-3009 exists**, `transferWithAuthorization` pays the merchant directly but bypasses the
-BillFlow quote/invoice binding, so it would need a wrapper that consumes the authorization and emits the invoice event — more work;
+NEXA BILLFLOW quote/invoice binding, so it would need a wrapper that consumes the authorization and emits the invoice event — more work;
 not recommended inside this hackathon window.
 
 Mention in `WHITECHAIN_FEEDBACK.md` (if you run the probe): whether the testnet USDT exposes permit/3009 and that it was unclear from the docs.

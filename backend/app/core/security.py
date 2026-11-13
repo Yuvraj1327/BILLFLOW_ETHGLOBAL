@@ -42,7 +42,7 @@ def verify_jwt(token: str, s: Settings) -> dict[str, Any]:
             key = _jwks(s.jwks_url).get_signing_key_from_jwt(token).key
         else:
             raise unauthorized("Invalid token", "invalid_token")
-        claims = jwt.decode(token, key, algorithms=[alg], audience=s.supabase_jwt_audience,
+        claims = jwt.decode(token, key, algorithms=[alg], audience=s.supabase_jwt_audience, leeway=30,
                             options={"require": ["exp", "sub"]})
     except jwt.ExpiredSignatureError:
         raise unauthorized("Token expired", "token_expired")

@@ -185,3 +185,21 @@ def test_public_endpoints_send_a_single_allow_origin_header(client):
     """Regression: dev CORS regex + public middleware used to emit two Access-Control-Allow-Origin values (browsers reject that)."""
     r = client.get("/api/v1/public/invoices/does-not-exist", headers={"Origin": "http://localhost:8099"})
     assert [v for k, v in r.headers.multi_items() if k.lower() == "access-control-allow-origin"] == ["*"]
+
+
+def test_unhandled_500_and_missing_table_keep_cors_headers(monkeypatch):
+    """A 500 without Access-Control-Allow-Origin shows up in the browser as 'cannot reach the server'."""
+    import psycopg
+    from fastapi.testclient import TestClient
+    import app.main as main
+    origin = {"Origin": "http://localhost:3000"}
+    monkeypatch.setattr(main, "pool_ready", lambda: True)
+    tc = TestClient(main.create_app(), raise_server_exceptions=False)  # no `with`: skip lifespan (no DB pool needed)
+    monkeypatch.setattr(main, "ping", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    r = tc.get("/health", headers=origin)
+    assert r.status_code == 500 and r.json()["error"]["code"] == "internal_error"
+    assert r.headers.get("access-control-allow-origin") == origin["Origin"]
+    monkeypatch.setattr(main, "ping", lambda: (_ for _ in ()).throw(psycopg.errors.UndefinedTable("investor_profiles")))
+    r = tc.get("/health", headers=origin)
+    assert r.status_code == 503 and r.json()["error"]["code"] == "schema_outdated"
+    assert r.headers.get("access-control-allow-origin") == origin["Origin"]

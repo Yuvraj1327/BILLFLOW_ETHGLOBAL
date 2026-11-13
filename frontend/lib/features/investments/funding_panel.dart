@@ -78,7 +78,8 @@ class _S extends ConsumerState<FundingPanel> {
     } catch (e) {
       _error = errorText(e);
     }
-    if (mounted) setState(() {
+    if (!mounted) return;
+    setState(() {
       _busy = false;
       _step = '';
     });

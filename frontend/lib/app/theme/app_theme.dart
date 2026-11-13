@@ -33,6 +33,15 @@ ThemeData _build(Brightness b) {
     useMaterial3: true,
     fontFamilyFallback: const ['Inter', 'SF Pro Text', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial'],
     visualDensity: VisualDensity.standard,
+    // Same short fade-through on every platform (web defaults to no transition at all).
+    pageTransitionsTheme: const PageTransitionsTheme(builders: {
+      TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      TargetPlatform.macOS: FadeForwardsPageTransitionsBuilder(),
+      TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+      TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+      TargetPlatform.fuchsia: FadeForwardsPageTransitionsBuilder(),
+    }),
     textTheme: Typography.material2021().black.apply(fontFamilyFallback: const ['Inter', 'Roboto']).copyWith(
           displaySmall: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.5),
           headlineMedium: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.4),
@@ -65,8 +74,12 @@ ThemeData _build(Brightness b) {
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: light ? const Color(0xFFD1D5DB) : const Color(0xFF3A3A3A))),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: light ? const Color(0xFFD1D5DB) : const Color(0xFF3A3A3A))),
       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: scheme.primary, width: 1.6)),
+      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: light ? Tokens.danger : const Color(0xFFF87171))),
+      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: light ? Tokens.danger : const Color(0xFFF87171), width: 1.6)),
+      errorStyle: TextStyle(color: light ? Tokens.danger : const Color(0xFFF87171), fontWeight: FontWeight.w500),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     ),
+    textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)))),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(minimumSize: const Size(48, 48), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), textStyle: const TextStyle(fontWeight: FontWeight.w600)),
     ),
